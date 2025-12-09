@@ -1,12 +1,12 @@
 # Dev Tools Plugin
 
-面向开发者的专业工具插件，提供代码生成、架构设计和重构支持。
+面向开发者的专业工具插件，提供代码生成、Git管理、架构设计和重构支持。
 
 ## 插件信息
 
 - **名称**：dev-tools
-- **版本**：1.0.0
-- **作者**：Your Name
+- **版本**：1.1.0
+- **作者**：huangshan
 - **类型**：开发工具
 
 ## 功能概览
@@ -14,6 +14,7 @@
 这个插件为开发者提供专业的代码开发辅助工具：
 
 - 🚀 快速生成代码模板
+- 📝 智能 Git 提交管理
 - 🏗️ 架构设计指导
 - 🔧 重构建议和指导
 - 📊 代码质量分析
@@ -43,6 +44,29 @@
 
 [详细文档](commands/gen.md)
 
+### 2. /commit - 智能 Git 提交
+
+智能化的 Git 提交命令，自动分析代码变更并生成符合规范的提交信息。
+
+**核心功能**：
+- 自动检测变更类型和影响范围
+- 生成符合 Conventional Commits 规范的提交信息
+- 支持交互式和自动模式
+- 集成代码质量检查
+- 智能分支管理
+- 可选的自动推送
+
+**用法**：
+```
+/commit                                    # 智能分析和提交
+/commit --auto                             # 自动模式
+/commit --push                             # 提交并推送
+/commit --type feat --scope auth           # 指定类型和范围
+/commit --check-all --push                 # 运行检查后提交并推送
+```
+
+[详细文档](commands/commit.md)
+
 ## 包含的代理
 
 ### 1. Architect - 架构设计专家
@@ -63,23 +87,29 @@
 
 [详细文档](agents/architect.md)
 
-### 2. CodeReviewer - 代码审查专家（已迁移）
+### 2. GitExpert - Git 专家代理
 
-> **注意**：CodeReviewer 功能已迁移到独立的 [code-review 插件](../code-review/)，提供更专业的代码审查服务。
->
-> 请安装 code-review 插件以使用代码审查功能：
-> ```bash
-> # 使用独立的专业代码审查插件
-> /review                    # 全面代码审查
-> /security                  # 安全专项检查
-> /performance               # 性能分析
-> @CodeReviewer              # 代码审查专家
-> @SecurityExpert            # 安全审查专家
-> ```
+专业的 Git 专家，处理各种 Git 相关的任务和问题。
+
+**专长**：
+- 🔄 提交管理和历史优化
+- 🌿 分支管理和策略设计
+- 📊 Git 历史分析
+- 🛠️ 工作流优化
+- 🔧 高级 Git 操作
+
+**使用方式**：
+```
+@GitExpert 帮我分析这个提交历史
+@GitExpert 如何处理合并冲突？
+@GitExpert 帮我优化 Git 工作流
+```
+
+[详细文档](agents/git-expert.md)
 
 ## 包含的技能
 
-### 1. 代码重构
+### 1. 重构 (Refactoring)
 
 系统化的重构指导和方案。
 
@@ -91,22 +121,30 @@
 
 [详细文档](skills/refactoring/SKILL.md)
 
-### 2. 代码分析（已迁移）
+### 2. 提交管理 (Commit)
 
-> **注意**：代码分析技能已迁移到独立的 [code-review 插件](../code-review/skills/code-analysis/)，提供更深入的代码分析能力。
+智能化的 Git 提交功能。
+
+**能力**：
+- 变更类型检测（feat, fix, refactor 等）
+- Scope 自动识别
+- 提交信息生成
+- 质量检查和验证
+
+[详细文档](skills/commit/SKILL.md)
 
 ## 安装方法
 
 ### Windows
 
 ```powershell
-Copy-Item -Recurse plugins\dev-tools-plugin "$env:APPDATA\Claude\plugins\dev-tools-plugin"
+Copy-Item -Recurse plugins\dev-tools "$env:APPDATA\Claude\plugins\dev-tools"
 ```
 
 ### macOS/Linux
 
 ```bash
-cp -r plugins/dev-tools-plugin ~/.config/claude/plugins/dev-tools-plugin
+cp -r plugins/dev-tools ~/.config/claude/plugins/dev-tools
 ```
 
 安装后重启 Claude Code。
@@ -122,11 +160,21 @@ cp -r plugins/dev-tools-plugin ~/.config/claude/plugins/dev-tools-plugin
 你: /gen test UserAPI
 （生成对应的测试代码）
 
-你: （使用独立的 code-review 插件）
-/review  # 审查生成的代码
+你: /commit --push
+（智能提交并推送）
 ```
 
-### 场景 2：架构设计
+### 场景 2：Git 工作流管理
+
+```
+你: /commit --create-branch --branch-type feature
+（自动创建功能分支并提交）
+
+你: @GitExpert 帮我规划团队的 Git 工作流
+（获取专业的 Git 工作流建议）
+```
+
+### 场景 3：架构设计
 
 ```
 你: @Architect 我要开发一个博客系统，帮我设计架构
@@ -136,65 +184,83 @@ Architect: （提供完整的架构设计）
 - 技术选型
 - 数据库设计
 - 扩展方案
-
-你: 如果用户增长到100万，该怎么扩展？
-
-Architect: （提供扩展方案）
 ```
 
-### 场景 3：重构现有代码
+### 场景 4：代码重构
 
 ```
-你: （使用 code-review 插件）
-@CodeReviewer 这段代码有什么问题？
+你: @Architect 这段代码架构合理吗？
 （粘贴代码）
 
-CodeReviewer:
-- 🟡 函数过于复杂
-- 🟡 存在代码重复
-- 建议：提取函数、消除重复
+Architect: （提供架构分析和改进建议）
 
-你: 能给我重构方案吗？
-
-CodeReviewer: （提供具体的重构步骤和代码）
+你: /commit --type refactor --scope performance
+（提交重构后的代码）
 ```
 
-## 配置选项
+## 工作流集成
 
-插件支持通过配置自定义行为：
+### Git Hooks 集成
+
+插件支持自动化的 Git hooks：
 
 ```json
+// hooks/hooks.json
 {
-  "codeGeneration": {
-    "defaultLanguage": "javascript",
-    "template": "standard",
-    "includeComments": true,
-    "includeTests": true
+  "onCommit": {
+    "description": "提交时自动触发",
+    "action": "runPreCommitChecks"
+  },
+  "onGenerate": {
+    "description": "代码生成时触发",
+    "action": "suggestCommit"
   }
 }
 ```
 
-## 支持的语言和框架
+### 与 Code Review 插件协作
 
-### 后端
-- JavaScript / Node.js / Express
-- TypeScript / NestJS
-- Python / Flask / Django / FastAPI
-- Java / Spring Boot
-- Go / Gin
-- Rust / Actix
+与 code-review 插件完美配合：
 
-### 前端
-- React / Next.js
-- Vue / Nuxt.js
-- Angular
-- Svelte
+```bash
+# 开发流程
+/gen feature             # 生成功能代码
+/commit --check          # 提交前检查
+/review                   # 代码审查
+/commit --push            # 通过审查后提交推送
+```
 
-### 数据库
-- PostgreSQL
-- MySQL
-- MongoDB
-- Redis
+## 配置选项
+
+### 提交配置 (.commit-config.json)
+
+```json
+{
+  "commit": {
+    "defaultType": "feat",
+    "defaultScope": "app",
+    "pushDefault": false,
+    "preCommitChecks": ["lint", "test"],
+    "autoCreateBranch": true,
+    "branchNaming": {
+      "feature": "feat/{scope}-{description}",
+      "hotfix": "fix/{version}-{description}"
+    }
+  }
+}
+```
+
+### 代码生成配置
+
+```json
+{
+  "generation": {
+    "defaultLanguage": "javascript",
+    "template": "standard",
+    "includeTests": true
+  }
+}
+```
 
 ## 最佳实践
 
@@ -203,117 +269,47 @@ CodeReviewer: （提供具体的重构步骤和代码）
 ```
 1. 使用 /gen 快速生成代码模板
 2. 编写具体的业务逻辑
-3. 使用 code-review 插件进行代码审查
-4. 根据建议进行改进
-5. 编写测试用例
-6. 提交代码
+3. 使用 /commit 进行智能提交
+4. 必要时使用 @Architect 进行架构咨询
+5. 使用 @GitExpert 解决 Git 问题
 ```
 
-### 2. 代码审查
+### 2. Git 工作流
 
 ```
-1. 开发完成后，先自己审查一遍
-2. 使用 code-review 插件的 @CodeReviewer 进行自动审查
-3. 重点关注安全和性能问题
-4. 修复严重和中等问题
-5. 请团队成员进行人工审查
+1. 功能开发使用 feature 分支
+2. 提交信息遵循 Conventional Commits 规范
+3. 使用 /commit --auto 进行快速提交
+4. 大型功能使用 /commit --split 拆分提交
+5. 定期使用 @GitExpert 优化工作流
 ```
 
 ### 3. 架构设计
 
 ```
-1. 明确需求和约束
-2. 与 @Architect 讨论架构方案
-3. 评估不同方案的优劣
-4. 选择最适合的方案
-5. 编写架构文档
-6. 团队评审
-```
-
-### 4. 重构策略
-
-```
-1. 识别需要重构的代码
-2. 补充测试用例
-3. 使用 code-review 插件讨论重构方案
-4. 小步重构，频繁测试
-5. 及时提交代码
-6. 持续改进
-```
-
-## 高级功能
-
-### 批量代码生成
-
-```
-/gen api User Post Comment --batch
-```
-
-### 自定义模板
-
-```
-/gen api User --template rest-advanced
-```
-
-### 深度架构分析
-
-```
-@Architect 分析我们的系统架构 --mode deep
-```
-
-### 安全审计
-
-> 使用 code-review 插件的安全功能：
-> ```
-> /security --focus owasp
-> ```
-
-## 集成开发工具
-
-### VS Code 集成
-
-```json
-{
-  "claude.plugins": ["dev-tools-plugin", "code-review"],
-  "claude.autoReview": true,
-  "claude.reviewOnSave": true
-}
-```
-
-### Git Hooks
-
-```bash
-# pre-commit hook - 使用 code-review 插件
-#!/bin/sh
-claude /review --focus security --staged
-```
-
-### CI/CD 集成
-
-```yaml
-# .github/workflows/code-review.yml - 使用 code-review 插件
-- name: Code Review
-  run: |
-    claude /review --depth deep --output report.md
+1. 开始前咨询 @Architect
+2. 定期评估架构合理性
+3. 遇到技术选型问题时寻求建议
+4. 使用重构建议改进现有架构
 ```
 
 ## 常见问题
 
-### Q: 代码生成的模板可以自定义吗？
+### Q: 如何自定义代码生成模板？
 
-A: 当前版本使用内置模板。未来版本会支持自定义模板。
+A: 当前版本使用内置模板。可以在配置文件中指定模板类型。
 
-### Q: 如何进行代码审查？
+### Q: /commit 命令支持哪些提交类型？
 
-A: 请使用独立的 [code-review 插件](../code-review/)，它提供更专业的代码审查功能，包括安全检查、性能分析等。
+A: 支持 Conventional Commits 规范的所有类型：feat, fix, docs, style, refactor, test, chore, perf, ci, build。
 
-### Q: 支持哪些代码质量工具？
+### Q: 如何处理复杂的 Git 操作？
 
-A: code-review 插件内置了代码分析能力。也可以集成 ESLint、SonarQube 等外部工具。
+A: 使用 @GitExpert 代理，它能处理各种复杂的 Git 场景，包括历史重写、分支策略等。
 
-### Q: 如何为特定项目配置规则？
+### Q: 提交后可以自动创建 PR 吗？
 
-A: 在项目根目录创建 `.clauderc` 文件，配置项目特定的规则。
+A: 可以，使用 `/commit --push --create-pr` 会在推送后自动创建 Pull Request。
 
 ## 相关插件
 
@@ -321,31 +317,23 @@ A: 在项目根目录创建 `.clauderc` 文件，配置项目特定的规则。
   - 🔍 全面代码审查
   - 🔒 安全漏洞检查
   - ⚡ 性能分析
-  - 📊 代码质量报告
-
-## 贡献和反馈
-
-欢迎：
-- 报告 Bug
-- 提出新功能建议
-- 分享使用经验
-- 贡献代码模板
 
 ## 更新日志
+
+### v1.1.0 (2024-12-09)
+
+- ✨ 新增 `/commit` 命令：智能 Git 提交管理
+- ✨ 新增 `@GitExpert` 代理：专业的 Git 专家
+- ✨ 新增 `commit` 技能：提交分析和生成
+- 🔄 重命名插件为 dev-tools（原 dev-tools-plugin）
+- 📝 更新文档，添加 Git 工作流说明
 
 ### v1.0.0 (2024-12-03)
 
 - ✨ 初始版本发布
-- 🚀 代码生成命令
-- 🏗️ Architect 代理
-- 🔧 重构技能
-- 📦 代码审查功能迁移到独立插件
-
-### v1.0.1 (2024-12-09)
-
-- 🔄 将代码审查功能迁移到独立的 code-review 插件
-- 📝 更新文档，添加插件使用指引
-- 🎯 专注于代码生成、架构设计和重构功能
+- 🚀 `/gen` 代码生成命令
+- 🏗️ `Architect` 架构设计代理
+- 🔧 `refactoring` 重构技能
 
 ## 许可证
 
