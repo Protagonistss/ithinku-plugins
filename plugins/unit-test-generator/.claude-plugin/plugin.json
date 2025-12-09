@@ -1,0 +1,10 @@
+{
+  "name": "unit-test-generator",
+  "version": "1.0.0",
+  "description": "专业的单元测试生成工具",
+  "author": {
+    "name": "huangshan",
+    "email": "protagonisths@gmail.com"
+  },
+  "license": "MIT"
+}
