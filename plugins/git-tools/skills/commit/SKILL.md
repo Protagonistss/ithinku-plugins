@@ -376,6 +376,87 @@ const pushSafetyChecks = {
 };
 ```
 
+## 插件集成功能
+
+### 检测其他插件
+
+```javascript
+// 检测依赖的插件是否安装
+function detectPlugins() {
+  const plugins = {
+    codeReview: checkPluginExists('code-review'),
+    unitTestGenerator: checkPluginExists('unit-test-generator')
+  };
+  return plugins;
+}
+
+// 提示安装缺失的插件
+function suggestPlugin(pluginName, feature) {
+  return `⚠️  ${pluginName} 插件未安装\n💡 安装后可以${feature}\n📦 安装命令: claude plugin install ${pluginName}`;
+}
+```
+
+### 集成代码审查
+
+```javascript
+// 当使用 --check 参数时集成代码审查
+async function runCodeReviewCheck() {
+  const hasCodeReview = checkPluginExists('code-review');
+
+  if (!hasCodeReview) {
+    console.log(suggestPlugin('code-review', '获得更全面的代码质量检查'));
+    return { canContinue: true };
+  }
+
+  // 调用 code-review 插件
+  const reviewResult = await invokePlugin('code-review', {
+    mode: 'quick',
+    files: getStagedFiles()
+  });
+
+  if (reviewResult.criticalIssues > 0) {
+    return {
+      canContinue: false,
+      message: '发现严重问题，建议修复后再提交'
+    };
+  }
+
+  return { canContinue: true };
+}
+```
+
+### 集成单元测试
+
+```javascript
+// 当使用 --check-test 参数时集成测试生成
+async function runTestCheck() {
+  const hasUnitTestGenerator = checkPluginExists('unit-test-generator');
+
+  if (!hasUnitTestGenerator) {
+    console.log(suggestPlugin('unit-test-generator', '自动生成缺失的测试用例'));
+    return { canContinue: true };
+  }
+
+  // 检查是否有文件缺少测试
+  const filesWithoutTests = findFilesWithoutTests();
+
+  if (filesWithoutTests.length > 0) {
+    console.log(`📝 发现 ${filesWithoutTests.length} 个文件缺少测试`);
+
+    const userChoice = await askUser('是否生成测试用例? [Y/n]');
+    if (userChoice === 'y') {
+      // 调用 unit-test-generator 插件
+      await invokePlugin('unit-test-generator', {
+        files: filesWithoutTests,
+        autoGenerate: true
+      });
+    }
+  }
+
+  return { canContinue: true };
+}
+```
+
 ## 使用方式
 
 这个技能被 `/commit` 命令自动调用，也可以通过其他代理使用：
@@ -387,7 +468,11 @@ action: analyzeAndCommit
 params: {
   autoMode: false,
   includePush: false,
-  runChecks: true
+  runChecks: true,
+  integrations: {
+    codeReview: true,
+    unitTest: true
+  }
 }
 
 // 在代理中使用
@@ -436,6 +521,18 @@ params: {
         "maxWords": 5,
         "useCamelCase": false
       }
+    },
+    "integrations": {
+      "codeReview": {
+        "enabled": true,
+        "severity": "warning",
+        "autoFix": false
+      },
+      "unitTest": {
+        "enabled": true,
+        "coverage": 80,
+        "autoGenerate": false
+      }
     }
   }
 }
@@ -448,11 +545,18 @@ params: {
 ```javascript
 // 在提交前运行代码审查
 const commitWithReview = async (changes) => {
-  // 1. 运行质量检查
+  // 1. 检测插件
+  const plugins = detectPlugins();
+
+  if (!plugins.codeReview) {
+    console.log(suggestPlugin('code-review', '获得更全面的代码质量检查'));
+  }
+
+  // 2. 运行质量检查
   const qualityResult = await runQualityChecks(changes);
 
-  if (qualityResult.warnings.length > 0) {
-    // 2. 运行代码审查
+  if (qualityResult.warnings.length > 0 && plugins.codeReview) {
+    // 3. 运行代码审查
     const reviewResult = await skill('code-review', {
       files: changes.map(c => c.path),
       mode: 'quick'
@@ -554,7 +658,8 @@ const CommitErrors = {
   LARGE_COMMIT: 'LARGE_COMMIT',
   CONFLICT: 'CONFLICT',
   NETWORK_ERROR: 'NETWORK_ERROR',
-  PERMISSION_DENIED: 'PERMISSION_DENIED'
+  PERMISSION_DENIED: 'PERMISSION_DENIED',
+  PLUGIN_MISSING: 'PLUGIN_MISSING'
 };
 
 function handleError(error, context) {
@@ -566,6 +671,10 @@ function handleError(error, context) {
     [CommitErrors.LARGE_COMMIT]: {
       message: '提交过大',
       suggestion: '考虑拆分成多个提交'
+    },
+    [CommitErrors.PLUGIN_MISSING]: {
+      message: '缺少依赖插件',
+      suggestion: '安装建议的插件以获得完整功能'
     }
   };
 
@@ -582,4 +691,4 @@ function handleError(error, context) {
 }
 ```
 
-这个技能提供了完整的 Git 提交管理能力，从变更分析到提交信息生成，再到质量检查和推送管理，形成了一个完整的解决方案。
+这个技能提供了完整的 Git 提交管理能力，从变更分析到提交信息生成，再到质量检查和推送管理，形成了一个完整的解决方案。同时通过插件检测和集成机制，可以与其他插件协作，提供更强大的功能。
