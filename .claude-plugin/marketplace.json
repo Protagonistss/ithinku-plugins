@@ -10,7 +10,7 @@
     {
       "name": "code-review",
       "description": "专业的代码审查插件，提供全面的代码质量分析、安全检查和性能优化建议",
-      "path": "plugins/code-review",
+      "source": "./plugins/code-review",
       "version": "1.0.0",
       "keywords": ["code-review", "code-quality", "security", "performance", "best-practices"],
       "category": "development-tools"
@@ -18,7 +18,7 @@
     {
       "name": "dev-tools",
       "description": "面向开发者的专业工具集，提供代码生成、Git管理、架构设计和重构支持",
-      "path": "plugins/dev-tools",
+      "source": "./plugins/dev-tools",
       "version": "1.1.0",
       "keywords": ["development", "code-generation", "git", "commit", "architecture", "refactoring"],
       "category": "development-tools"

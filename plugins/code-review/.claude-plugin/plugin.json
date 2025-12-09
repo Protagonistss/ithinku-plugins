@@ -6,18 +6,6 @@
     "name": "huangshan",
     "email": "protagonisths@gmail.com"
   },
-  "homepage": "https://github.com/Protagonisths/claude-plugins",
-  "keywords": ["code-review", "code-quality", "security", "performance", "best-practices"],
-  "license": "MIT",
-  "engines": {
-    "claude": ">=1.0.0"
-  },
-  "capabilities": [
-    "commands",
-    "agents",
-    "skills",
-    "hooks"
-  ],
-  "category": "development-tools"
+  "license": "MIT"
 }
   

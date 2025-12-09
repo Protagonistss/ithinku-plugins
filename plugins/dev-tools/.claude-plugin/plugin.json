@@ -2,27 +2,10 @@
   "name": "dev-tools",
   "version": "1.1.0",
   "description": "面向开发者的专业工具集，提供代码生成、Git管理、架构设计和重构支持",
-  "author": "huangshan",
-  "homepage": "https://github.com/Protagonisths/claude-plugins",
-  "keywords": [
-    "development",
-    "refactoring",
-    "code-generation",
-    "git",
-    "commit",
-    "architecture",
-    "dev-tools"
-  ],
-  "license": "MIT",
-  "engines": {
-    "claude": ">=1.0.0"
+  "author": {
+    "name": "huangshan",
+    "email": "protagonisths@gmail.com"
   },
-  "capabilities": [
-    "commands",
-    "agents",
-    "skills",
-    "hooks"
-  ],
-  "category": "development-tools"
+  "license": "MIT"
 }
 
