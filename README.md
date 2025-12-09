@@ -16,14 +16,16 @@ Claude Code 支持通过插件系统扩展功能。本仓库用于：
 ## 项目结构
 
 ```
-AI/
+claude-plugins/
 ├── plugins/                      # 插件目录
-│   ├── productivity-plugin/     # 生产力增强插件
-│   ├── dev-tools-plugin/        # 开发工具插件
-│   └── README.md                # 插件开发指南
+│   ├── code-review/             # 代码审查插件
+│   ├── dev-tools/               # 开发工具插件
+│   └── unit-test-generator/     # 单元测试生成插件
 ├── shared/                       # 共享资源
 │   ├── prompts/                 # 通用提示词片段
 │   └── templates/               # 通用模板
+├── .claude-plugin/               # 插件市场配置
+│   └── marketplace.json          # 插件元数据和发布信息
 ├── .gitignore                   # Git 忽略文件
 └── README.md                    # 项目说明（本文件）
 ```
@@ -36,14 +38,14 @@ AI/
 
 **Windows:**
 ```powershell
-# 复制插件到 Claude Code
-Copy-Item -Recurse plugins\productivity-plugin "$env:APPDATA\Claude\plugins\productivity-plugin"
+# 复制所有插件到 Claude Code
+Copy-Item -Recurse plugins\* "$env:APPDATA\Claude\plugins\"
 ```
 
 **macOS/Linux:**
 ```bash
-# 复制插件到 Claude Code
-cp -r plugins/productivity-plugin ~/.config/claude/plugins/productivity-plugin
+# 复制所有插件到 Claude Code
+cp -r plugins/* ~/.config/claude/plugins/
 ```
 
 ### 2. 重启 Claude Code
@@ -55,7 +57,12 @@ cp -r plugins/productivity-plugin ~/.config/claude/plugins/productivity-plugin
 在 Claude Code 中：
 
 - 使用 `/command-name` 调用自定义命令
+  - 例如：`/gen component Button` - 生成React组件
+  - 例如：`/test src/utils/calculator.js` - 生成测试文件
+  - 例如：`/review` - 审查当前代码
 - 通过 `@agent-name` 与代理交互
+  - 例如：`@TestExpert 如何测试异步函数？`
+  - 例如：`@Architect 这个系统架构合理吗？`
 - 代理会自动使用配置的技能
 
 ## 插件标准结构
@@ -156,25 +163,72 @@ plugin-name/
 
 ## 现有插件
 
-### 1. Productivity Plugin（生产力插件）
+### 1. Code Review Plugin（代码审查插件）
 
-提升日常工作效率的工具集。
+专业的代码审查工具，提供全面的代码质量分析、安全检查和性能优化建议。
 
-- **Commands**: 快捷命令集合
-- **Agents**: 任务助手
-- **Skills**: 项目管理、时间管理
+- **版本**: 1.0.0
+- **Commands**: `/review` - 代码审查命令
+- **Agents**:
+  - `@CodeReviewer` - 代码审查代理
+  - `@SecurityExpert` - 安全专家代理
+- **Skills**:
+  - 代码质量分析
+  - 安全漏洞检测
+  - 性能优化建议
+  - 最佳实践指导
 
-[查看详情](plugins/productivity-plugin/README.md)
+[查看详情](plugins/code-review/README.md)
 
 ### 2. Dev Tools Plugin（开发工具插件）
 
-面向开发者的专业工具。
+面向开发者的专业工具集，提供代码生成、Git管理、架构设计和重构支持。
 
-- **Commands**: 代码生成、重构工具
-- **Agents**: 代码审查助手、架构顾问
-- **Skills**: 代码分析、性能优化
+- **版本**: 1.1.0
+- **Commands**:
+  - `/gen` - 代码生成（API、数据模型、UI组件等）
+  - `/commit` - 智能Git提交管理
+- **Agents**:
+  - `@Architect` - 架构设计专家
+  - `@GitExpert` - Git工作流专家
+- **Skills**:
+  - 代码生成模板
+  - Git提交管理
+  - 架构设计指导
+  - 测试集成（可调用 unit-test-generator）
 
-[查看详情](plugins/dev-tools-plugin/README.md)
+[查看详情](plugins/dev-tools/README.md)
+
+### 3. Unit Test Generator Plugin（单元测试生成插件）
+
+专业的单元测试生成工具，支持多种编程语言和测试框架。
+
+- **版本**: 1.0.0
+- **Commands**:
+  - `/test` - 生成单元测试（默认使用 Vitest）
+  - `/mock` - 生成Mock数据和Stub函数
+  - `/coverage` - 测试覆盖率分析
+- **Agents**:
+  - `@TestExpert` - 测试专家代理
+- **Skills**:
+  - 智能代码分析
+  - 多框架测试生成（Jest、Vitest、Pytest、JUnit等）
+  - Mock数据生成
+  - 测试断言生成
+
+[查看详情](plugins/unit-test-generator/README.md)
+
+## 插件协作
+
+这些插件可以协同工作，提供完整的开发工作流：
+
+```
+开发流程示例：
+1. /gen feature          → 生成功能代码（dev-tools）
+2. /test src/feature.js  → 生成测试（unit-test-generator）
+3. /review               → 代码审查（code-review）
+4. /commit --push        → 提交代码（dev-tools）
+```
 
 ## 开发新插件
 
@@ -256,8 +310,9 @@ mkdir -p .claude-plugin commands agents skills hooks
 ## 参考资料
 
 - [Claude Code 官方文档](https://docs.anthropic.com/claude-code)
-- [插件开发指南](plugins/README.md)
-- [最佳实践集合](shared/README.md)
+- [插件市场配置](.claude-plugin/marketplace.json)
+- [共享提示词模板](shared/prompts/)
+- [配置模板](shared/templates/)
 
 ## 许可证
 

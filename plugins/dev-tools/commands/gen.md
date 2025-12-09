@@ -144,6 +144,36 @@ module.exports = Product;
 /gen test UserService
 ```
 
+**专业测试生成模式**
+
+如果检测到您已安装 `unit-test-generator` 插件，系统会提示是否使用专业模式：
+
+```
+检测到 unit-test-generator 插件，是否使用专业测试生成模式？
+[Y] 是 - 使用专业测试插件
+[N] 否 - 使用基础测试生成
+```
+
+**使用专业模式的优势：**
+- 支持更多测试框架（Jest、Vitest、Pytest、JUnit等）
+- 自动生成Mock数据和Stub函数
+- 智能边界值和错误场景测试
+- 测试覆盖率分析和优化建议
+
+**直接调用专业测试插件：**
+```bash
+# 生成带Mock的测试
+/gen test src/api/userService.js --mock
+
+# 使用特定框架
+/gen test src/components/Button.jsx --framework vitest
+
+# 分析覆盖率并补充测试
+/gen test src/utils/validator.js --coverage
+```
+
+**基础测试生成**（未安装专业插件时）：
+
 生成：
 ```javascript
 // tests/UserService.test.js

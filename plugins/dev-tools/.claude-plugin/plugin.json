@@ -1,6 +1,6 @@
 {
   "name": "dev-tools",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "面向开发者的专业工具集，提供代码生成、Git管理、架构设计和重构支持",
   "author": {
     "name": "huangshan",
