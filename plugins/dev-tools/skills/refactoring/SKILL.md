@@ -454,8 +454,10 @@ git commit -m "refactor: 提取 calculateTotal 函数"
 ## 集成说明
 
 这个技能会被以下代理使用：
-- CodeReviewer - 提供重构建议
 - Architect - 架构级重构方案
+- CodeReviewer (通过 code-review 插件) - 提供重构建议
+
+> **注意**：CodeReviewer 功能已迁移到独立的 [code-review 插件](../../code-review/)，提供更专业的代码审查和重构建议。
 
 ## 版本历史
 

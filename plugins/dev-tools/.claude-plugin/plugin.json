@@ -1,0 +1,16 @@
+{
+  "name": "dev-tools",
+  "version": "1.0.0",
+  "description": "面向开发者的专业工具集，提供代码生成、架构设计和重构支持",
+  "author": "huangshan",
+  "homepage": "https://github.com/Protagonistss/claude-plugins",
+  "keywords": [
+    "development",
+    "refactoring",
+    "code-generation",
+    "architecture",
+    "dev-tools"
+  ],
+  "license": "MIT"
+}
+

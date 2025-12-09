@@ -1,10 +1,10 @@
 # Dev Tools Plugin
 
-面向开发者的专业工具插件，提供代码生成、审查、重构和架构设计支持。
+面向开发者的专业工具插件，提供代码生成、架构设计和重构支持。
 
 ## 插件信息
 
-- **名称**：dev-tools-plugin
+- **名称**：dev-tools
 - **版本**：1.0.0
 - **作者**：Your Name
 - **类型**：开发工具
@@ -14,7 +14,6 @@
 这个插件为开发者提供专业的代码开发辅助工具：
 
 - 🚀 快速生成代码模板
-- 🔍 专业的代码审查
 - 🏗️ 架构设计指导
 - 🔧 重构建议和指导
 - 📊 代码质量分析
@@ -44,47 +43,9 @@
 
 [详细文档](commands/gen.md)
 
-### 2. /review - 代码审查
-
-对代码进行全面审查，提供专业的改进建议。
-
-**审查维度**：
-- 代码质量
-- 安全性
-- 性能
-- 最佳实践
-
-**用法**：
-```
-/review
-/review src/api/user.js
-/review --focus security
-/review --depth deep
-```
-
-[详细文档](commands/review.md)
-
 ## 包含的代理
 
-### 1. CodeReviewer - 代码审查专家
-
-专业的代码审查者，帮助你提高代码质量。
-
-**专长**：
-- 🔍 识别代码问题
-- 🔒 发现安全漏洞
-- ⚡ 性能优化建议
-- 📚 最佳实践指导
-
-**使用方式**：
-```
-@CodeReviewer 请审查这段代码
-@CodeReviewer 这个设计有什么问题吗？
-```
-
-[详细文档](agents/code-reviewer.md)
-
-### 2. Architect - 架构设计专家
+### 1. Architect - 架构设计专家
 
 软件架构师，帮助你设计可扩展的系统。
 
@@ -102,21 +63,23 @@
 
 [详细文档](agents/architect.md)
 
+### 2. CodeReviewer - 代码审查专家（已迁移）
+
+> **注意**：CodeReviewer 功能已迁移到独立的 [code-review 插件](../code-review/)，提供更专业的代码审查服务。
+>
+> 请安装 code-review 插件以使用代码审查功能：
+> ```bash
+> # 使用独立的专业代码审查插件
+> /review                    # 全面代码审查
+> /security                  # 安全专项检查
+> /performance               # 性能分析
+> @CodeReviewer              # 代码审查专家
+> @SecurityExpert            # 安全审查专家
+> ```
+
 ## 包含的技能
 
-### 1. 代码分析
-
-深入分析代码质量，识别问题和改进空间。
-
-**能力**：
-- 质量指标计算
-- 代码异味检测
-- 安全漏洞扫描
-- 性能问题识别
-
-[详细文档](skills/code-analysis/SKILL.md)
-
-### 2. 代码重构
+### 1. 代码重构
 
 系统化的重构指导和方案。
 
@@ -127,6 +90,10 @@
 - 最佳实践
 
 [详细文档](skills/refactoring/SKILL.md)
+
+### 2. 代码分析（已迁移）
+
+> **注意**：代码分析技能已迁移到独立的 [code-review 插件](../code-review/skills/code-analysis/)，提供更深入的代码分析能力。
 
 ## 安装方法
 
@@ -155,26 +122,11 @@ cp -r plugins/dev-tools-plugin ~/.config/claude/plugins/dev-tools-plugin
 你: /gen test UserAPI
 （生成对应的测试代码）
 
-你: /review
-（审查生成的代码）
+你: （使用独立的 code-review 插件）
+/review  # 审查生成的代码
 ```
 
-### 场景 2：代码审查
-
-```
-你: @CodeReviewer 请审查这个文件
-
-CodeReviewer: （提供详细的审查报告）
-- 🔴 SQL 注入风险
-- 🟡 缺少错误处理
-- 🟢 代码结构清晰
-
-你: 如何修复 SQL 注入问题？
-
-CodeReviewer: （提供具体的修复方案和示例代码）
-```
-
-### 场景 3：架构设计
+### 场景 2：架构设计
 
 ```
 你: @Architect 我要开发一个博客系统，帮我设计架构
@@ -190,13 +142,14 @@ Architect: （提供完整的架构设计）
 Architect: （提供扩展方案）
 ```
 
-### 场景 4：重构现有代码
+### 场景 3：重构现有代码
 
 ```
-你: @CodeReviewer 这段代码有什么问题？
+你: （使用 code-review 插件）
+@CodeReviewer 这段代码有什么问题？
 （粘贴代码）
 
-CodeReviewer: 
+CodeReviewer:
 - 🟡 函数过于复杂
 - 🟡 存在代码重复
 - 建议：提取函数、消除重复
@@ -217,16 +170,6 @@ CodeReviewer: （提供具体的重构步骤和代码）
     "template": "standard",
     "includeComments": true,
     "includeTests": true
-  },
-  "codeReview": {
-    "defaultDepth": "normal",
-    "focusAreas": ["security", "performance", "quality"],
-    "autoFix": false
-  },
-  "analysis": {
-    "complexityThreshold": 10,
-    "duplicationThreshold": 5,
-    "securityScan": true
   }
 }
 ```
@@ -260,7 +203,7 @@ CodeReviewer: （提供具体的重构步骤和代码）
 ```
 1. 使用 /gen 快速生成代码模板
 2. 编写具体的业务逻辑
-3. 使用 /review 进行代码审查
+3. 使用 code-review 插件进行代码审查
 4. 根据建议进行改进
 5. 编写测试用例
 6. 提交代码
@@ -270,7 +213,7 @@ CodeReviewer: （提供具体的重构步骤和代码）
 
 ```
 1. 开发完成后，先自己审查一遍
-2. 使用 @CodeReviewer 进行自动审查
+2. 使用 code-review 插件的 @CodeReviewer 进行自动审查
 3. 重点关注安全和性能问题
 4. 修复严重和中等问题
 5. 请团队成员进行人工审查
@@ -292,7 +235,7 @@ CodeReviewer: （提供具体的重构步骤和代码）
 ```
 1. 识别需要重构的代码
 2. 补充测试用例
-3. 与 @CodeReviewer 讨论重构方案
+3. 使用 code-review 插件讨论重构方案
 4. 小步重构，频繁测试
 5. 及时提交代码
 6. 持续改进
@@ -320,9 +263,10 @@ CodeReviewer: （提供具体的重构步骤和代码）
 
 ### 安全审计
 
-```
-/review --focus security --report detailed
-```
+> 使用 code-review 插件的安全功能：
+> ```
+> /security --focus owasp
+> ```
 
 ## 集成开发工具
 
@@ -330,7 +274,7 @@ CodeReviewer: （提供具体的重构步骤和代码）
 
 ```json
 {
-  "claude.plugins": ["dev-tools-plugin"],
+  "claude.plugins": ["dev-tools-plugin", "code-review"],
   "claude.autoReview": true,
   "claude.reviewOnSave": true
 }
@@ -339,7 +283,7 @@ CodeReviewer: （提供具体的重构步骤和代码）
 ### Git Hooks
 
 ```bash
-# pre-commit hook
+# pre-commit hook - 使用 code-review 插件
 #!/bin/sh
 claude /review --focus security --staged
 ```
@@ -347,7 +291,7 @@ claude /review --focus security --staged
 ### CI/CD 集成
 
 ```yaml
-# .github/workflows/code-review.yml
+# .github/workflows/code-review.yml - 使用 code-review 插件
 - name: Code Review
   run: |
     claude /review --depth deep --output report.md
@@ -359,17 +303,25 @@ claude /review --focus security --staged
 
 A: 当前版本使用内置模板。未来版本会支持自定义模板。
 
-### Q: 代码审查会自动修复问题吗？
+### Q: 如何进行代码审查？
 
-A: 默认不会自动修复。可以启用 `autoFix` 选项进行自动修复（实验性功能）。
+A: 请使用独立的 [code-review 插件](../code-review/)，它提供更专业的代码审查功能，包括安全检查、性能分析等。
 
 ### Q: 支持哪些代码质量工具？
 
-A: 插件内置了代码分析能力。也可以集成 ESLint、SonarQube 等外部工具。
+A: code-review 插件内置了代码分析能力。也可以集成 ESLint、SonarQube 等外部工具。
 
 ### Q: 如何为特定项目配置规则？
 
 A: 在项目根目录创建 `.clauderc` 文件，配置项目特定的规则。
+
+## 相关插件
+
+- **[Code Review Plugin](../code-review/)** - 专业的代码审查插件
+  - 🔍 全面代码审查
+  - 🔒 安全漏洞检查
+  - ⚡ 性能分析
+  - 📊 代码质量报告
 
 ## 贡献和反馈
 
@@ -385,11 +337,15 @@ A: 在项目根目录创建 `.clauderc` 文件，配置项目特定的规则。
 
 - ✨ 初始版本发布
 - 🚀 代码生成命令
-- 🔍 代码审查命令
-- 🤖 CodeReviewer 代理
 - 🏗️ Architect 代理
-- 📊 代码分析技能
 - 🔧 重构技能
+- 📦 代码审查功能迁移到独立插件
+
+### v1.0.1 (2024-12-09)
+
+- 🔄 将代码审查功能迁移到独立的 code-review 插件
+- 📝 更新文档，添加插件使用指引
+- 🎯 专注于代码生成、架构设计和重构功能
 
 ## 许可证
 
@@ -398,4 +354,3 @@ MIT License - 详见项目根目录 LICENSE 文件
 ---
 
 **让我们一起写出更好的代码！🚀**
-

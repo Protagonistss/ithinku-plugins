@@ -11,9 +11,9 @@
     "description": "激活代理时触发",
     "action": "prepareAgentContext"
   },
-  "onCodeReview": {
-    "description": "代码审查完成时触发",
-    "action": "generateReviewReport"
+  "onGenerate": {
+    "description": "代码生成完成时触发",
+    "action": "logGeneratedFiles"
   },
   "onRefactor": {
     "description": "重构完成时触发",

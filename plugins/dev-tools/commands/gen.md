@@ -311,6 +311,12 @@ export default Button;
 ## 相关命令
 
 - `/refactor` - 重构现有代码
-- `/review` - 代码审查
 - `/optimize` - 性能优化
+
+### 代码审查相关
+
+> **注意**：代码审查功能已迁移到独立的 [code-review 插件](../../code-review/)，提供以下命令：
+> - `/review` - 全面代码审查
+> - `/security` - 安全专项检查
+> - `/performance` - 性能分析
 
