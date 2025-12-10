@@ -238,4 +238,4 @@ expect(spy).toHaveBeenCalledWith(expectedArgs);
 
 - `/test` - 生成测试用例（自动包含Mock）
 - `/coverage` - 分析测试覆盖率
-- @TestExpert - 获取Mock设计建议
+- @test-expert - 获取Mock设计建议

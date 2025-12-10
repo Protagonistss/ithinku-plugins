@@ -342,4 +342,4 @@ export default defineConfig({
 
 - `/test` - 生成测试用例
 - `/mock` - 生成Mock数据
-- @TestExpert - 获取测试覆盖率优化建议
+- @test-expert - 获取测试覆盖率优化建议

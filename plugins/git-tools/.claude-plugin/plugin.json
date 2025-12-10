@@ -1,0 +1,11 @@
+{
+  "name": "git-tools",
+  "version": "1.0.0",
+  "description": "智能Git工具集，提供自动化提交、分支管理和Git工作流优化",
+  "author": {
+    "name": "huangshan",
+    "email": "protagonisths@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": ["git", "version-control", "tools", "commit", "branch", "workflow"]
+}

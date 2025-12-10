@@ -36,6 +36,7 @@
 - `--draft-pr` - 创建草稿 PR
 - `--assign <user>` - 指定 PR 审查人
 - `--label <label>` - 添加 PR 标签
+- `--no-signature` - 不添加 "Generated with Claude Code" 签名
 
 ## 示例
 
@@ -50,6 +51,9 @@
 
 # 仅检查变更，不提交
 /commit --check
+
+# 提交但不添加 Claude Code 签名
+/commit --no-signature
 ```
 
 ### 指定提交类型
@@ -266,6 +270,7 @@ refactor(scope): 重构描述
     "requireIssue": false,
     "autoDetectScope": true,
     "pushDefault": false,
+    "addSignature": false,
     "preCommitChecks": ["lint", "test"],
     "prePushChecks": ["security", "build"],
     "branchProtection": {
@@ -417,6 +422,38 @@ refactor(scope): 重构描述
 📤 推送到远程
 🔄 触发 CI 流程...
 🔗 构建链接: https://ci.example.com/build/123
+```
+
+## 插件集成
+
+### 与 code-review 插件集成
+
+当使用 `--check` 参数时，git-tools 会自动检测 code-review 插件是否安装：
+
+```bash
+/commit --check
+```
+
+如果 code-review 插件未安装，会提示：
+```
+⚠️  code-review 插件未安装
+💡 安装后可以获得更全面的代码质量检查
+📦 安装命令: claude plugin install code-review
+```
+
+### 与 unit-test-generator 插件集成
+
+当使用 `--check-test` 参数时，会自动检测 unit-test-generator 插件：
+
+```bash
+/commit --check-test
+```
+
+如果 unit-test-generator 插件未安装，会提示：
+```
+⚠️  unit-test-generator 插件未安装
+💡 安装后可以自动生成缺失的测试用例
+📦 安装命令: claude plugin install unit-test-generator
 ```
 
 ## 最佳实践

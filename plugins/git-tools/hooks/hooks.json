@@ -1,0 +1,6 @@
+{
+  "description": "Git Tools Plugin 事件钩子配置",
+  "version": "1.0.0",
+  "hooks": {}
+}
+

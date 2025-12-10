@@ -2,7 +2,7 @@
 
 这个技能负责分析源代码并生成对应的单元测试用例。支持多种编程语言和测试框架。
 
-## 技能能力
+## 核心能力
 
 ### 1. 代码分析
 - AST解析，识别函数、类、方法
@@ -22,339 +22,300 @@
 - 添加必要的设置和清理代码
 - 生成有意义的断言
 
-## 使用方式
+## 支持的框架
 
-### 基础调用
+### JavaScript/TypeScript
+- **Jest** - 最流行的JavaScript测试框架
+- **Vitest** - 现代化的Vite原生测试框架
+- **Mocha** - 灵活的测试框架
+- **Jasmine** - 行为驱动的开发框架
 
-```typescript
-// 生成单个函数的测试
-await generateUnitTest('src/utils/calculator.js', {
-  functionName: 'add',
-  framework: 'vitest'
-});
+### Python
+- **pytest** - 功能强大的测试框架
+- **unittest** - Python标准库测试框架
+- **nose2** - unittest的扩展
 
-// 生成整个文件的测试
-await generateUnitTest('src/services/userService.js', {
-  framework: 'vitest',
-  includeMocks: true
-});
+### Java
+- **JUnit 5** - 现代Java测试框架
+- **TestNG** - 测试下一代框架
+- **Mockito** - 强大的Mock框架
+
+### 其他语言
+- Go (testing)
+- C# (xUnit, NUnit)
+- Ruby (RSpec, Minitest)
+
+## 使用方法
+
+### 基础使用
+```bash
+# 生成单个函数的测试
+/test src/utils/calculator.js --function add --framework vitest
+
+# 生成整个文件的测试
+/test src/services/userService.js --framework jest --mocks
 ```
 
 ### 高级选项
+```bash
+# 包含覆盖率分析
+/test src/api/userController.js --framework jest --coverage
 
-```typescript
-await generateUnitTest(targetFile, {
-  framework: 'vitest',
-  outputDir: 'tests/unit',
-  includeCoverage: true,
-  mockExternalDependencies: true,
-  generateDataProviders: true,
-  testPatterns: ['happy-path', 'edge-cases', 'error-handling']
-});
+# 生成边界值测试
+/test src/utils/validator.js --edge-cases
+
+# 只生成异常测试
+/test src/services/payment.js --error-only
 ```
 
-## 测试模板
+## 测试模板示例
 
-### JavaScript/TypeScript - Jest模板
+### JavaScript/TypeScript - Vitest
+```typescript
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { UserService } from '../src/services/UserService';
 
-```javascript
-{{#if isClass}}
-describe('{{className}}', () => {
-  let instance;
+describe('UserService', () => {
+  let userService: UserService;
+  let mockDb: any;
 
   beforeEach(() => {
-    instance = new {{className}}();
+    mockDb = {
+      find: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn()
+    };
+    userService = new UserService(mockDb);
   });
 
-  {{#each methods}}
-  describe('{{name}}', () => {
-    it('should work correctly with valid inputs', async () => {
-      // TODO: Add test implementation
+  describe('getUserById', () => {
+    it('should return user when found', async () => {
+      // Arrange
+      const userId = '123';
+      const expectedUser = { id: userId, name: 'John' };
+      mockDb.find.mockResolvedValue(expectedUser);
+
+      // Act
+      const result = await userService.getUserById(userId);
+
+      // Assert
+      expect(result).toEqual(expectedUser);
+      expect(mockDb.find).toHaveBeenCalledWith({ id: userId });
+    });
+
+    it('should return null when user not found', async () => {
+      // Arrange
+      const userId = '999';
+      mockDb.find.mockResolvedValue(null);
+
+      // Act
+      const result = await userService.getUserById(userId);
+
+      // Assert
+      expect(result).toBeNull();
     });
   });
-  {{/each}}
 });
-{{else}}
-{{#each functions}}
-describe('{{name}}', () => {
-  it('should work correctly with valid inputs', async () => {
-    // TODO: Add test implementation
-  });
-});
-{{/each}}
-{{/if}}
 ```
 
-### JavaScript/TypeScript - Vitest模板
-
-```typescript
-import { describe, it, expect, beforeEach } from 'vitest';
-
-{{#if hasImports}}
-{{#each imports}}
-import { {{name}} } from '{{path}}';
-{{/each}}
-{{/if}}
-
-{{#if isClass}}
-describe('{{className}}', () => {
-  let instance: {{className}};
-
-  beforeEach(() => {
-    instance = new {{className}}();
-  });
-
-  {{#each methods}}
-  describe('{{name}}', () => {
-    it('should return correct result', () => {
-      const result = instance.{{name}}({{#if hasParams}}/* parameters */{{/if}});
-      expect(result).toBeDefined();
-    });
-  });
-  {{/each}}
-});
-{{/if}}
-```
-
-### Python - pytest模板
-
+### Python - pytest
 ```python
 import pytest
-from pathlib import Path
-import sys
+from unittest.mock import Mock, patch
+from services.user_service import UserService
 
-# Add source directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+class TestUserService:
+    @pytest.fixture
+    def user_service(self):
+        with patch('services.user_service.Database') as mock_db:
+            yield UserService(mock_db)
 
-{{#each imports}}
-{{.}}
-{{/each}}
+    def test_get_user_by_id_success(self, user_service):
+        """Test getting user with valid ID"""
+        # Arrange
+        user_id = 123
+        expected_user = {"id": user_id, "name": "John"}
+        user_service.db.find.return_value = expected_user
 
-{{#if isClass}}
-class Test{{className}}:
-    def setup_method(self):
-        """Setup before each test method"""
-        self.instance = {{className}}()
+        # Act
+        result = user_service.get_user_by_id(user_id)
 
-    {{#each methods}}
-    def test_{{name}}_success(self):
-        """Test {{name}} with valid inputs"""
-        # TODO: Add test implementation
-        pass
+        # Assert
+        assert result == expected_user
+        user_service.db.find.assert_called_once_with({"id": user_id})
 
-    def test_{{name}}_edge_cases(self):
-        """Test {{name}} with edge cases"""
-        # TODO: Add edge case tests
-        pass
-    {{/each}}
-{{/if}}
+    def test_get_user_by_id_not_found(self, user_service):
+        """Test getting non-existent user"""
+        # Arrange
+        user_id = 999
+        user_service.db.find.return_value = None
+
+        # Act
+        result = user_service.get_user_by_id(user_id)
+
+        # Assert
+        assert result is None
 ```
 
 ## 测试数据生成
 
-### 基础数据类型
-
+### 自动生成测试数据
 ```typescript
-function generateTestData(type: string, constraints?: any): any {
-  switch (type) {
-    case 'string':
-      return constraints?.enum ?
-        constraints.enum[0] :
-        generateRandomString();
+// 根据类型生成测试数据
+const testData = {
+  string: ["hello", "", "a".repeat(255), "特殊字符"],
+  number: [0, 1, -1, 100, Number.MAX_SAFE_INTEGER],
+  boolean: [true, false],
+  array: [[], [1], [1, 2, 3], Array(1000).fill(0)],
+  object: [{}, { key: "value" }, null, undefined]
+};
 
-    case 'number':
-      return constraints?.range ?
-        getRandomNumber(constraints.range) :
-        Math.random() * 100;
+// 边界值生成
+const boundaries = {
+  string: ["", "a", "a".repeat(255), "a".repeat(256)],
+  number: [Number.MIN_VALUE, -1, 0, 1, Number.MAX_VALUE],
+  array: [[] , [1], [1000]],
+};
+```
 
-    case 'boolean':
-      return Math.random() > 0.5;
+## Mock策略
 
-    case 'array':
-      return Array.from({ length: 3 }, (_, i) =>
-        generateTestData(constraints?.itemType));
+### 自动Mock外部依赖
+- 识别外部模块导入
+- 自动生成Mock代码
+- 配置Mock返回值
+- 验证Mock调用
 
-    case 'object':
-      return generateObjectData(constraints?.properties);
+### Mock示例
+```typescript
+// 自动生成的Mock
+jest.mock('../src/utils/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn()
   }
-}
-```
-
-### 边界值生成
-
-```typescript
-function generateBoundaryValues(type: string): any[] {
-  switch (type) {
-    case 'number':
-      return [0, 1, -1, Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER];
-
-    case 'string':
-      return ['', 'a', 'a'.repeat(255), 'a'.repeat(256)];
-
-    case 'array':
-      return [[], [1], Array.from({ length: 1000 })];
-  }
-}
-```
-
-## Mock生成策略
-
-### 自动识别需要Mock的依赖
-
-```typescript
-function detectDependencies(ast: any): DependencyInfo[] {
-  const dependencies: DependencyInfo[] = [];
-
-  // 识别外部模块导入
-  ast.body.forEach(node => {
-    if (node.type === 'ImportDeclaration') {
-      if (isExternalModule(node.source.value)) {
-        dependencies.push({
-          name: node.source.value,
-          type: 'external',
-          importedNames: extractImportedNames(node)
-        });
-      }
-    }
-  });
-
-  return dependencies;
-}
-```
-
-### Mock代码生成
-
-```javascript
-// Jest Mock生成
-{{#each mocks}}
-jest.mock('{{name}}', () => ({
-  {{#each exported}}
-  {{name}}: jest.fn(),
-  {{/each}}
 }));
-{{/each}}
 
-// 测试中的Mock使用
-beforeEach(() => {
-  {{#each mocks}}
-  {{#each exported}}
-  {{name}}.mockClear();
-  {{/each}}
-  {{/each}}
-});
+// 测试中验证Mock调用
+expect(logger.info).toHaveBeenCalledWith('User created successfully');
 ```
 
 ## 覆盖率优化
 
-### 未覆盖代码检测
+### 智能测试补充
+- 分析代码覆盖率报告
+- 识别未测试的分支
+- 自动生成补充测试用例
+- 优化测试数据组合
 
-```typescript
-function analyzeCoverage(code: string, tests: string): CoverageGap[] {
-  const gaps: CoverageGap[] = [];
-
-  // 分析代码分支
-  const branches = extractBranches(code);
-
-  // 检查每个分支是否有对应测试
-  branches.forEach(branch => {
-    if (!hasTestForBranch(branch, tests)) {
-      gaps.push({
-        type: 'branch',
-        line: branch.line,
-        condition: branch.condition,
-        suggestion: generateTestSuggestion(branch)
-      });
-    }
-  });
-
-  return gaps;
-}
-```
-
-### 自动生成补充测试
-
-```javascript
-// 基于覆盖率分析生成额外测试
-function generateAdditionalTests(gaps: CoverageGap[]): string[] {
-  return gaps.map(gap => {
-    switch (gap.type) {
-      case 'branch':
-        return generateBranchTest(gap);
-      case 'edge-case':
-        return generateEdgeCaseTest(gap);
-      default:
-        return generateGeneralTest(gap);
-    }
-  });
-}
-```
+### 覆盖率目标
+- 语句覆盖率 > 90%
+- 分支覆盖率 > 85%
+- 函数覆盖率 > 95%
+- 行覆盖率 > 90%
 
 ## 最佳实践
 
-### 1. 测试命名
-- 使用描述性的测试名称
-- 遵循 "should [expected behavior] when [condition]" 模式
-- 避免使用数字编号
+### 1. 测试命名规范
+```typescript
+// ✅ 好的命名
+it('should create user with valid data');
+it('should throw error when email already exists');
 
-### 2. 测试结构
-- 使用AAA模式（Arrange, Act, Assert）
-- 每个测试只验证一个行为
-- 保持测试简短和专注
+// ❌ 避免的命名
+it('test1');
+it('user creation test');
+```
 
-### 3. 测试数据
-- 使用工厂函数生成测试数据
-- 避免硬编码的魔法数字
-- 使用有意义的测试数据
+### 2. AAA模式
+```typescript
+it('should calculate discount correctly', () => {
+  // Arrange - 准备测试数据
+  const price = 100;
+  const discountRate = 0.1;
 
-### 4. Mock使用
-- 只Mock外部依赖
-- 避免过度Mock
-- 验证Mock的调用
+  // Act - 执行被测代码
+  const result = calculateDiscount(price, discountRate);
 
-## 错误处理
+  // Assert - 验证结果
+  expect(result).toBe(90);
+});
+```
 
-### 常见错误及解决方案
+### 3. 测试隔离
+- 每个测试独立运行
+- 使用beforeEach/afterEach清理
+- 避免测试间的依赖
 
-1. **无法解析的代码**
-   ```typescript
-   if (parseError) {
-     return {
-       success: false,
-       error: 'Unable to parse source code',
-       suggestion: 'Check syntax and ensure file is valid'
-     };
-   }
-   ```
+### 4. 有意义的断言
+```typescript
+// ✅ 具体的断言
+expect(user.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
-2. **缺少类型信息**
-   ```typescript
-   if (!typeInfo) {
-     console.warn(`No type info for ${functionName}, using generic tests`);
-     return generateGenericTests(functionName);
-   }
-   ```
+// ❌ 模糊的断言
+expect(user).toBeDefined();
+```
 
-3. **循环依赖**
-   ```typescript
-   if (hasCircularDependency(dependencies)) {
-     console.warn('Circular dependency detected, skipping some mocks');
-     dependencies = resolveCircularDependencies(dependencies);
-   }
-   ```
+## 常见问题处理
 
-## 性能优化
+### 1. 异步代码测试
+```typescript
+// Promise
+it('should resolve with data', async () => {
+  const result = await fetchData();
+  expect(result).toEqual(expectedData);
+});
 
-### 1. 增量测试生成
-- 只生成新增或修改的函数的测试
-- 缓存AST解析结果
-- 重用已有的测试模板
+// Callback
+it('should call callback', (done) => {
+  fetchData((data) => {
+    expect(data).toBeDefined();
+    done();
+  });
+});
+```
 
-### 2. 并行处理
-- 并行分析多个文件
-- 使用Web Worker处理大型文件
-- 流式处理生成结果
+### 2. 错误处理测试
+```typescript
+it('should throw error for invalid input', () => {
+  expect(() => validateEmail('invalid')).toThrow();
+});
 
-### 3. 智能去重
-- 识别相似的测试用例
-- 合并重复的测试逻辑
-- 优化测试数据生成
+it('should reject promise on error', async () => {
+  await expect(asyncOperation()).rejects.toThrow('Error message');
+});
+```
+
+### 3. 时间相关测试
+```typescript
+// 使用假时间
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+it('should debounce function calls', async () => {
+  const debouncedFn = debounce(originalFn, 100);
+
+  debouncedFn();
+  vi.advanceTimersByTime(50);
+  expect(originalFn).not.toHaveBeenCalled();
+
+  vi.advanceTimersByTime(50);
+  expect(originalFn).toHaveBeenCalledTimes(1);
+});
+```
+
+## 集成命令
+
+这个技能与其他命令集成：
+- `/test` - 生成测试用例
+- `/mock` - 生成Mock数据
+- `/coverage` - 分析测试覆盖率
+
+通过智能分析和模板化生成，帮助开发者快速编写高质量的单元测试。

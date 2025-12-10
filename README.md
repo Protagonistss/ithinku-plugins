@@ -61,7 +61,7 @@ cp -r plugins/* ~/.config/claude/plugins/
   - 例如：`/test src/utils/calculator.js` - 生成测试文件
   - 例如：`/review` - 审查当前代码
 - 通过 `@agent-name` 与代理交互
-  - 例如：`@TestExpert 如何测试异步函数？`
+  - 例如：`@test-expert 如何测试异步函数？`
   - 例如：`@Architect 这个系统架构合理吗？`
 - 代理会自动使用配置的技能
 
@@ -209,7 +209,7 @@ plugin-name/
   - `/mock` - 生成Mock数据和Stub函数
   - `/coverage` - 测试覆盖率分析
 - **Agents**:
-  - `@TestExpert` - 测试专家代理
+  - `@test-expert` - 测试专家代理
 - **Skills**:
   - 智能代码分析
   - 多框架测试生成（Jest、Vitest、Pytest、JUnit等）

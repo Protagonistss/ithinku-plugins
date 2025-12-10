@@ -185,4 +185,4 @@ class TestCalculator:
 
 - `/mock` - 专门生成Mock数据和Stub
 - `/coverage` - 分析测试覆盖率
-- @TestExpert - 与测试专家代理交互获得更详细的指导
+- @test-expert - 与测试专家代理交互获得更详细的指导

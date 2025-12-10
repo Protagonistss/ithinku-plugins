@@ -175,7 +175,7 @@ function generateInstallPrompt(): string {
 🎭 自动生成Mock数据和Stub函数
 🎯 智能边界值和错误场景测试
 📊 测试覆盖率分析和优化建议
-🤖 测试专家代理 (@TestExpert)
+🤖 测试专家代理 (@test-expert)
 
 安装方法：
 1. 下载插件: https://github.com/Protagonisths/claude-plugins

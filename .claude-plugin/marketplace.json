@@ -17,10 +17,18 @@
     },
     {
       "name": "dev-tools",
-      "description": "面向开发者的专业工具集，提供代码生成、Git管理、架构设计和重构支持",
+      "description": "面向开发者的专业工具集，提供代码生成、架构设计和重构支持",
       "source": "./plugins/dev-tools",
       "version": "1.1.0",
-      "keywords": ["development", "code-generation", "git", "commit", "architecture", "refactoring"],
+      "keywords": ["development", "code-generation", "architecture", "refactoring"],
+      "category": "development-tools"
+    },
+    {
+      "name": "git-tools",
+      "description": "智能Git工具集，提供自动化提交、分支管理和Git工作流优化",
+      "source": "./plugins/git-tools",
+      "version": "1.0.0",
+      "keywords": ["git", "version-control", "tools", "commit", "branch", "workflow"],
       "category": "development-tools"
     },
     {
