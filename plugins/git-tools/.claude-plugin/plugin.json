@@ -7,6 +7,5 @@
     "email": "protagonisths@gmail.com"
   },
   "license": "MIT",
-  "keywords": ["git", "version-control", "tools", "commit", "branch", "workflow"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["git", "version-control", "tools", "commit", "branch", "workflow"]
 }
