@@ -1,0 +1,26 @@
+{
+  "description": "Code Review Plugin hooks configuration",
+  "version": "1.0.0",
+  "hooks": {
+    "onLoad": {
+      "description": "Initialization actions when plugin is loaded",
+      "actions": [
+        "console.log('Code Review Plugin loaded successfully');"
+      ]
+    },
+    "onUnload": {
+      "description": "Cleanup actions when plugin is unloaded",
+      "actions": [
+        "console.log('Code Review Plugin unloaded');"
+      ]
+    }
+  },
+  "settings": {
+    "autoReview": {
+      "enabled": true
+    },
+    "notification": {
+      "enabled": true
+    }
+  }
+}

@@ -1,11 +1,11 @@
 # 测试插件集成技能
 
-这个技能负责检测和集成 unit-test-generator 插件，让 dev-tools 能够调用专业的测试生成功能。
+这个技能负责检测和集成 test-generator 插件，让 dev-tools 能够调用专业的测试生成功能。
 
 ## 技能能力
 
 ### 1. 插件检测
-- 检查 unit-test-generator 插件是否已安装
+- 检查 test-generator 插件是否已安装
 - 获取插件版本和支持的功能
 - 验证插件兼容性
 
@@ -41,7 +41,7 @@ if (hasTestPlugin) {
 // 代理调用测试插件
 async function callTestPlugin(target: string, options: TestOptions) {
   const skillArgs = {
-    plugin: 'unit-test-generator',
+    plugin: 'test-generator',
     skill: 'unit-test-generation',
     params: {
       target,
@@ -64,7 +64,7 @@ async function callTestPlugin(target: string, options: TestOptions) {
 async function checkUnitTestGeneratorPlugin(): Promise<boolean> {
   try {
     // 检查插件目录是否存在
-    const pluginPath = path.join(process.cwd(), 'plugins', 'unit-test-generator');
+    const pluginPath = path.join(process.cwd(), 'plugins', 'test-generator');
     const exists = await fs.pathExists(pluginPath);
 
     if (!exists) {
@@ -76,10 +76,10 @@ async function checkUnitTestGeneratorPlugin(): Promise<boolean> {
     const config = await fs.readJson(configPath);
 
     // 验证插件名称和版本
-    return config.name === 'unit-test-generator' &&
+    return config.name === 'test-generator' &&
            semver.gte(config.version, '1.0.0');
   } catch (error) {
-    console.error('Failed to check unit-test-generator plugin:', error);
+    console.error('Failed to check test-generator plugin:', error);
     return false;
   }
 }
@@ -91,7 +91,7 @@ async function checkUnitTestGeneratorPlugin(): Promise<boolean> {
 async function promptUserForTestMode(): Promise<boolean> {
   const response = await promptUser({
     type: 'confirm',
-    message: '检测到 unit-test-generator 插件，是否使用专业测试生成模式？',
+    message: '检测到 test-generator 插件，是否使用专业测试生成模式？',
     default: true,
     choices: [
       { name: '是 - 使用专业测试插件', value: true },
@@ -158,7 +158,7 @@ async function generateBasicTest(target: string, options: GenOptions): Promise<T
   return {
     success: true,
     testPath,
-    message: `基础测试已生成: ${testPath}\n提示：安装 unit-test-generator 插件以获得更强大的测试生成功能`
+    message: `基础测试已生成: ${testPath}\n提示：安装 test-generator 插件以获得更强大的测试生成功能`
   };
 }
 ```
@@ -170,7 +170,7 @@ function generateInstallPrompt(): string {
   return `
 ⚡ 提升您的测试体验！
 
-安装 unit-test-generator 插件以获得：
+安装 test-generator 插件以获得：
 ✨ 支持更多测试框架 (Jest, Vitest, Pytest, JUnit等)
 🎭 自动生成Mock数据和Stub函数
 🎯 智能边界值和错误场景测试
@@ -183,7 +183,7 @@ function generateInstallPrompt(): string {
 3. 重启 Claude Code
 
 或者使用 dev-tools 安装：
-/install-plugin unit-test-generator
+/install-plugin test-generator
   `;
 }
 ```
@@ -228,7 +228,7 @@ if (command === 'test') {
 ```typescript
 // 调用测试插件技能的标准接口
 interface TestPluginSkillCall {
-  plugin: 'unit-test-generator';
+  plugin: 'test-generator';
   skill: string;
   params: {
     target: string;

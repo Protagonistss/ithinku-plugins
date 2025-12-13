@@ -226,7 +226,7 @@ async function featureComplete() {
 // 在 commit 技能中
 const integrations = {
   codeReview: checkPluginExists('code-review'),
-  unitTest: checkPluginExists('unit-test-generator'),
+  unitTest: checkPluginExists('test-generator'),
   cicd: checkPluginExists('ci-cd')
 };
 

@@ -441,19 +441,19 @@ refactor(scope): 重构描述
 📦 安装命令: claude plugin install code-review
 ```
 
-### 与 unit-test-generator 插件集成
+### 与 test-generator 插件集成
 
-当使用 `--check-test` 参数时，会自动检测 unit-test-generator 插件：
+当使用 `--check-test` 参数时，会自动检测 test-generator 插件：
 
 ```bash
 /commit --check-test
 ```
 
-如果 unit-test-generator 插件未安装，会提示：
+如果 test-generator 插件未安装，会提示：
 ```
-⚠️  unit-test-generator 插件未安装
+⚠️  test-generator 插件未安装
 💡 安装后可以自动生成缺失的测试用例
-📦 安装命令: claude plugin install unit-test-generator
+📦 安装命令: claude plugin install test-generator
 ```
 
 ## 最佳实践

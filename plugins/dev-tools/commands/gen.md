@@ -146,10 +146,10 @@ module.exports = Product;
 
 **专业测试生成模式**
 
-如果检测到您已安装 `unit-test-generator` 插件，系统会提示是否使用专业模式：
+如果检测到您已安装 `test-generator` 插件，系统会提示是否使用专业模式：
 
 ```
-检测到 unit-test-generator 插件，是否使用专业测试生成模式？
+检测到 test-generator 插件，是否使用专业测试生成模式？
 [Y] 是 - 使用专业测试插件
 [N] 否 - 使用基础测试生成
 ```

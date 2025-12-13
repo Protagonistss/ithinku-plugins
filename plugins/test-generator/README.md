@@ -1,4 +1,4 @@
-# Unit Test Generator Plugin
+# Test Generator Plugin
 
 专业的单元测试生成工具，支持多种编程语言和测试框架。能够智能分析代码并生成高质量的测试用例。
 
@@ -220,7 +220,7 @@ class TestCalculator:
 
 ### 全局配置
 
-在用户配置目录创建 `unit-test-generator.json`：
+在用户配置目录创建 `test-generator.json`：
 
 ```json
 {
@@ -243,7 +243,7 @@ class TestCalculator:
 /gen test src/utils/calculator.js
 
 # 检测到测试插件后，会提示使用专业模式
-检测到 unit-test-generator 插件，是否使用专业测试生成模式？
+检测到 test-generator 插件，是否使用专业测试生成模式？
 ```
 
 ### 与 code-review 集成
@@ -331,7 +331,7 @@ MIT License - 查看 [LICENSE](LICENSE) 文件了解详情。
 
 ## 支持
 
-- 📖 [文档](https://github.com/Protagonisths/claude-plugins/tree/main/plugins/unit-test-generator)
+- 📖 [文档](https://github.com/Protagonisths/claude-plugins/tree/main/plugins/test-generator)
 - 🐛 [问题反馈](https://github.com/Protagonisths/claude-plugins/issues)
 - 💬 [讨论区](https://github.com/Protagonisths/claude-plugins/discussions)
 - 📧 [邮件支持](mailto:support@protagonisths.com)

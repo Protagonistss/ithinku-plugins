@@ -116,9 +116,9 @@ claude plugin install git-tools
   claude plugin install code-review
   ```
 
-- **unit-test-generator** - 自动生成单元测试
+- **test-generator** - 自动生成单元测试
   ```bash
-  claude plugin install unit-test-generator
+  claude plugin install test-generator
   ```
 
 ### 自动检测
