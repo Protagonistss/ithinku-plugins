@@ -1,0 +1,4 @@
+[submodule "plugins/kdesinger-dev-tools"]
+	path = plugins/kdesinger-dev-tools
+	url = git@gitee.com:kdesigner/dev-tools.git
+	branch = master
