@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "claude-plugins-protagonisths",
+  "name": "protagonisths-plugins",
   "description": "A collection of Claude plugins for development productivity",
   "owner": {
     "name": "Protagonisths",
@@ -32,9 +32,9 @@
       "category": "development-tools"
     },
     {
-      "name": "unit-test-generator",
+      "name": "test-generator",
       "description": "专业的单元测试生成工具，支持多种编程语言和测试框架，能够智能分析代码并生成高质量的测试用例",
-      "source": "./plugins/unit-test-generator",
+      "source": "./plugins/test-generator",
       "version": "1.0.0",
       "keywords": ["testing", "unit-test", "code-generation", "jest", "vitest", "pytest", "junit", "mock", "coverage"],
       "category": "testing"
