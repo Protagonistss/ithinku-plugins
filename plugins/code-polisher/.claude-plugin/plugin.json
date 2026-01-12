@@ -1,0 +1,10 @@
+{
+  "name": "code-polisher",
+  "version": "1.0.0",
+  "description": "专业的代码审查插件，提供全面的代码质量分析、安全检查和性能优化建议",
+  "author": {
+    "name": "huangshan",
+    "email": "protagonisths@gmail.com"
+  }
+}
+  
