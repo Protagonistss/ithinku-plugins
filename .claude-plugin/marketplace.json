@@ -38,6 +38,14 @@
       "version": "1.0.0",
       "keywords": ["testing", "unit-test", "code-generation", "jest", "vitest", "pytest", "junit", "mock", "coverage"],
       "category": "testing"
+    },
+    {
+      "name": "code-polisher",
+      "description": "专业的代码打磨器，提供代码质量优化、格式化和最佳实践建议",
+      "source": "./plugins/code-polisher",
+      "version": "1.0.0",
+      "keywords": ["code-quality", "refactoring", "formatting", "best-practices", "optimization", "代码打磨", "代码优化", "格式化"],
+      "category": "development-tools"
     }
   ]
 }
