@@ -1,3 +1,10 @@
+---
+name: branch
+description: 智能分支管理技能 - 策略、操作自动化和冲突解决。用于创建分支、合并分支、检查冲突或清理分支。
+disable-model-invocation: true
+argument-hint: [create|merge|check-conflicts|cleanup] [args...]
+---
+
 # Skill: Branch
 
 智能分支管理技能 - 策略、操作自动化和冲突解决。

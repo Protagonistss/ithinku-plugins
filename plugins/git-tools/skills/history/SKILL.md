@@ -1,3 +1,10 @@
+---
+name: history
+description: Git 历史管理技能 - 重写、优化和分析历史。用于分析提交历史质量、执行 rebase、搜索提交或创建历史快照。
+disable-model-invocation: true
+argument-hint: [analyze|rebase|search|snapshot] [args...]
+---
+
 # Skill: History
 
 Git 历史管理技能 - 重写、优化和分析历史。
