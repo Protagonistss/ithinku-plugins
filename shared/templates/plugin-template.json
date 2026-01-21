@@ -1,8 +1,11 @@
 {
   "name": "plugin-name",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "插件描述 - 简短说明插件的功能和用途",
-  "author": "Your Name",
+  "author": {
+    "name": "huangshan",
+    "email": "protagonisths@gmail.com"
+  },
   "homepage": "https://github.com/yourusername/repo",
   "keywords": [
     "keyword1",

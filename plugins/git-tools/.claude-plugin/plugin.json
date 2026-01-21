@@ -1,6 +1,6 @@
 {
   "name": "git-tools",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "智能Git工具集，提供自动化提交、分支管理和Git工作流优化",
   "author": {
     "name": "huangshan",
