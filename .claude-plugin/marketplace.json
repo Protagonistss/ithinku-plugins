@@ -1,9 +1,9 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "protagonisths-plugins",
+  "name": "claude-plugins",
   "description": "A collection of Claude plugins for development productivity",
   "owner": {
-    "name": "Protagonisths",
+    "name": "huangshan",
     "email": "protagonisths@gmail.com"
   },
   "plugins": [
@@ -11,7 +11,7 @@
       "name": "code-review",
       "description": "专业的代码审查插件，提供全面的代码质量分析、安全检查和性能优化建议",
       "source": "./plugins/code-review",
-      "version": "1.0.0",
+      "version": "0.0.1",
       "keywords": ["code-review", "code-quality", "security", "performance", "best-practices"],
       "category": "development-tools"
     },
@@ -19,7 +19,7 @@
       "name": "dev-tools",
       "description": "面向开发者的专业工具集，提供代码生成、架构设计和重构支持",
       "source": "./plugins/dev-tools",
-      "version": "1.1.0",
+      "version": "0.0.1",
       "keywords": ["development", "code-generation", "architecture", "refactoring"],
       "category": "development-tools"
     },
@@ -27,7 +27,7 @@
       "name": "git-tools",
       "description": "智能Git工具集，提供自动化提交、分支管理和Git工作流优化",
       "source": "./plugins/git-tools",
-      "version": "1.0.0",
+      "version": "0.0.1",
       "keywords": ["git", "version-control", "tools", "commit", "branch", "workflow", "提交", "推送", "拉取", "合并", "克隆", "暂存", "回滚", "撤销", "标签", "版本", "checkout", "merge", "rebase", "stash", "reset", "revert", "cherry-pick", "fetch", "diff", "log", "status", "push", "pull", "add"],
       "category": "development-tools"
     },
@@ -35,7 +35,7 @@
       "name": "test-generator",
       "description": "专业的单元测试生成工具，支持多种编程语言和测试框架，能够智能分析代码并生成高质量的测试用例",
       "source": "./plugins/test-generator",
-      "version": "1.0.0",
+      "version": "0.0.1",
       "keywords": ["testing", "unit-test", "code-generation", "jest", "vitest", "pytest", "junit", "mock", "coverage"],
       "category": "testing"
     },
@@ -43,7 +43,7 @@
       "name": "code-polisher",
       "description": "专业的代码打磨器，提供代码质量优化、格式化和最佳实践建议",
       "source": "./plugins/code-polisher",
-      "version": "1.0.0",
+      "version": "0.0.1",
       "keywords": ["code-quality", "refactoring", "formatting", "best-practices", "optimization", "代码打磨", "代码优化", "格式化"],
       "category": "development-tools"
     },

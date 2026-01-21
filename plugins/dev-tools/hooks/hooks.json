@@ -1,6 +1,6 @@
 {
   "description": "Dev Tools Plugin 事件钩子配置",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "hooks": {
     "onLoad": {
       "description": "插件加载时执行的初始化操作",
