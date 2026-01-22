@@ -1,5 +1,5 @@
 ---
-name: core-design
+name: ui-design-core
 description: 核心设计能力，提供配色、布局、组件样式生成及反模式检查。
 ---
 

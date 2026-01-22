@@ -1,3 +1,8 @@
+---
+name: performance-review
+description: 性能瓶颈定位、资源评估与优化建议能力。
+---
+
 # Skill: Performance Review
 
 专业的性能分析技能，能够识别代码性能瓶颈、评估运行效率并提供优化建议。

@@ -21,6 +21,10 @@ assistant: [使用 code-reviewer 分析性能瓶颈并提供优化建议]
 </example>
 color: blue
 keywords: [代码审查, code review, 安全检查, 性能优化, 代码质量, 最佳实践]
+skills:
+  - code-analysis
+  - security-review
+  - performance-review
 ---
 
 # Agent: CodeReviewer

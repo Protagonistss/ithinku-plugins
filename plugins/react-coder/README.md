@@ -12,7 +12,7 @@
 
 ## 核心技能
 
-### 🎨 React Best Practices
+### 🎨 React Best Practices（技能名：react-best-practices）
 
 该技能是 React Coder 的核心，专注于提升代码的可维护性和扩展性。
 

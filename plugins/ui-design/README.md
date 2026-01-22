@@ -18,8 +18,8 @@ icon: 🎨
 
 ## 🚀 核心能力
 
-- **Core Design**: 生成具有“设计感”的代码。支持 Tailwind CSS, CSS Modules 等。
-- **A11y Check**: 确保独特设计的同时不牺牲无障碍访问性 (WCAG)。
+- **Core Design（技能名：ui-design-core）**: 生成具有“设计感”的代码。支持 Tailwind CSS, CSS Modules 等。
+- **A11y Check（技能名：ui-design-a11y）**: 确保独特设计的同时不牺牲无障碍访问性 (WCAG)。
 
 ## 🎨 快速体验
 
