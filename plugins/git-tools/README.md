@@ -6,7 +6,7 @@
 
 | 技能 | 核心功能 | 常用命令 |
 |------|----------|----------|
-| **[Commit](./skills/commit/SKILL.md)** | 智能提交、信息生成、质量检查 | `/commit analyze`, `/commit check`, `/commit commit` |
+| **[Commit](./skills/commit/SKILL.md)** | 智能提交、信息生成、质量检查 | `/ct analyze`, `/ct check`, `/ct create` |
 | **[Branch](./skills/branch/SKILL.md)** | 分支管理、策略、冲突解决 | `/branch create feature`, `/branch merge`, `/branch cleanup` |
 | **[History](./skills/history/SKILL.md)** | 历史分析、重写、搜索 | `/history analyze`, `/history rebase`, `/history search` |
 | **[Remote](./skills/remote/SKILL.md)** | 推送拉取、多仓库同步 | `/remote push --safe`, `/remote sync`, `/remote status` |
@@ -28,10 +28,10 @@ claude plugin install git-tools
 
 ```bash
 # 分析当前变更
-/commit analyze
+/ct analyze
 
 # 生成提交信息并提交
-/commit commit
+/ct create
 
 # 推送到远程
 /remote push
@@ -44,7 +44,7 @@ claude plugin install git-tools
 /branch create feature PROJ-123 "添加用户认证"
 
 # 开发过程中提交
-/commit commit
+/ct create
 
 # 完成功能，合并到主分支
 /branch merge feature/auth into main
@@ -177,10 +177,10 @@ A: 配置 `remote.multiRemote.remotes` 列表
 
 ### Commit 命令
 ```bash
-/commit analyze          # 分析变更
-/commit check            # 质量检查
-/commit commit           # 执行提交
-/commit --auto           # 自动模式
+/ct analyze          # 分析变更
+/ct check            # 质量检查
+/ct create           # 执行提交
+/ct --auto           # 自动模式
 ```
 
 ### Branch 命令

@@ -22,13 +22,13 @@ argument-hint: [analyze|check|create]
 
 ```bash
 # 分析并生成提交信息
-/commit analyze
+/ct analyze
 
 # 执行质量检查
-/commit check
+/ct check
 
 # 一键提交
-/commit create
+/ct create
 ```
 
 ## 配置
