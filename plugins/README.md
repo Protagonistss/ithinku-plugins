@@ -87,6 +87,19 @@
 
 [查看详情](code-polisher/README.md)
 
+### 7. Vue Coder Plugin（Vue 代码生成插件）
+
+专为 Vue.js 开发者设计的代码生成和最佳实践指导工具。
+
+**功能**：
+- 🟢 支持 Vue 2 & Vue 3
+- 🏗️ Composition API 与 Options API 最佳实践
+- 🍍 Pinia 与 Vuex 状态管理
+
+**使用场景**：Vue 组件开发、代码重构、Vue 2 到 Vue 3 迁移
+
+[查看详情](vue-coder/README.md)
+
 ## 插件结构
 
 每个 Claude Code 插件都遵循以下标准结构：

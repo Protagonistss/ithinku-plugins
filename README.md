@@ -23,7 +23,8 @@ claude-plugins/
 │   ├── git-tools/               # Git 工具插件
 │   ├── react-coder/             # React 代码生成插件
 │   ├── test-generator/          # 测试生成插件
-│   └── ui-design/               # UI 设计插件
+│   ├── ui-design/               # UI 设计插件
+│   └── vue-coder/               # Vue 代码生成插件
 ├── shared/                       # 共享资源
 │   ├── prompts/                 # 通用提示词片段
 │   └── templates/               # 通用模板

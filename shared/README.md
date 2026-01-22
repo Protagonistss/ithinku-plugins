@@ -224,8 +224,8 @@ function getUserData(userId) {
 ## 相关资源
 
 - [插件开发指南](../plugins/README.md)
-- [Productivity Plugin](../plugins/productivity-plugin/README.md)
-- [Dev Tools Plugin](../plugins/dev-tools-plugin/README.md)
+- [Code Review Plugin](../plugins/code-review/README.md)
+- [Git Tools Plugin](../plugins/git-tools/README.md)
 
 ## 反馈
 
