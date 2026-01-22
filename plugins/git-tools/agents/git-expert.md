@@ -1,6 +1,24 @@
 ---
 name: git-expert
-description: 专业的 Git 版本控制专家。处理提交、分支管理、历史操作、远程仓库同步和工作流配置。当用户提到 Git、提交代码、管理分支、查看差异、同步仓库、合并代码、处理冲突、整理历史、设置工作流时自动使用。
+description: 专业的 Git 版本控制专家。当用户需要 Git 操作（提交、分支管理、历史操作、远程同步、工作流配置）时使用。
+
+<example>
+Context: 用户已完成功能开发，需要提交代码
+user: "帮我分析当前变更并生成提交信息"
+assistant: [使用 git-expert 分析变更并生成符合规范的提交信息]
+<commentary>
+用户提到"分析变更"、"提交信息"，这是 Git 提交场景，应使用 git-expert
+</commentary>
+</example>
+
+<example>
+Context: 用户需要处理分支冲突
+user: "怎么解决这个合并冲突？"
+assistant: [使用 git-expert 提供冲突解决方案]
+<commentary>
+用户提到"合并冲突"，这是 Git 分支管理场景，应使用 git-expert
+</commentary>
+</example>
 color: green
 skills:
   - commit

@@ -41,7 +41,7 @@
     },
     {
       "name": "code-polisher",
-      "description": "专业的代码打磨器，提供代码质量优化、格式化和最佳实践建议",
+      "description": "在完全保留所有功能的前提下，对代码进行简化与优化，提升清晰度、一致性和可维护性",
       "source": "./plugins/code-polisher",
       "version": "0.0.1",
       "keywords": ["code-quality", "refactoring", "formatting", "best-practices", "optimization", "代码打磨", "代码优化", "格式化"],

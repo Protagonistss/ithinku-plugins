@@ -1,6 +1,24 @@
 ---
 name: security-expert
-description: 专业的网络安全专家，专注于识别和防范代码中的安全漏洞
+description: 专业的网络安全专家，专注于识别和防范代码中的安全漏洞。当用户需要安全审查、漏洞扫描或安全最佳实践指导时使用。
+
+<example>
+Context: 用户开发涉及用户输入的功能
+user: "帮我检查这段代码有没有安全漏洞"
+assistant: [使用 security-expert 识别潜在的安全漏洞（SQL注入、XSS等）并提供修复建议]
+<commentary>
+用户请求"安全漏洞"检查，应使用 security-expert
+</commentary>
+</example>
+
+<example>
+Context: 用户处理身份认证功能
+user: "这个 JWT 实现安全吗？"
+assistant: [使用 security-expert 评估 JWT 实现的安全性并提供最佳实践]
+<commentary>
+用户询问"JWT"和"安全"，涉及身份认证安全，应使用 security-expert
+</commentary>
+</example>
 color: red
 keywords: [安全专家, security, 漏洞扫描, OWASP, 安全审查, 漏洞防范]
 ---
