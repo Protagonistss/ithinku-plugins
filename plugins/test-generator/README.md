@@ -234,17 +234,8 @@ class TestCalculator:
 
 ## 与其他插件集成
 
-### 与 dev-tools 集成
 
-当安装了 dev-tools 插件时，可以使用 `/gen test` 命令自动调用测试生成功能：
 
-```bash
-# 在 dev-tools 中使用
-/gen test src/utils/calculator.js
-
-# 检测到测试插件后，会提示使用专业模式
-检测到 test-generator 插件，是否使用专业测试生成模式？
-```
 
 ### 与 code-review 集成
 
