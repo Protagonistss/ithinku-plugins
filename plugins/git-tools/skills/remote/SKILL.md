@@ -1,7 +1,7 @@
 ---
 name: remote
 description: 远程仓库管理技能 - 智能推送、拉取和多仓库同步。用于安全推送、智能拉取、同步分支或管理多个远程仓库。
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: [push|pull|sync|push-all] [args...]
 ---
 
