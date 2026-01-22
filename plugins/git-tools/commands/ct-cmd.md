@@ -18,14 +18,14 @@ description: 智能化的 Git 提交命令，自动分析代码变更并生成�
 ## 用法
 
 ```bash
-/commit [action] [options]
+/ct [action] [options]
 ```
 
 ### 主要操作
 
 - `analyze` - 分析当前变更并生成提交信息（默认）
 - `check` - 执行质量检查，不实际提交
-- `commit` - 一键提交（分析 + 检查 + 提交）
+- `create` - 一键提交（分析 + 检查 + 提交）
 
 ### 常用参数
 
@@ -56,49 +56,49 @@ description: 智能化的 Git 提交命令，自动分析代码变更并生成�
 
 ```bash
 # 分析变更并生成提交信息（交互式）
-/commit analyze
+/ct analyze
 
 # 执行质量检查
-/commit check
+/ct check
 
 # 一键提交（分析 + 检查 + 提交）
-/commit commit
+/ct create
 
 # 自动模式，不询问直接提交
-/commit commit --auto
+/ct create --auto
 ```
 
 ### 指定类型和范围
 
 ```bash
 # 功能提交
-/commit commit --type feat --scope auth
+/ct create --type feat --scope auth
 
 # 修复提交
-/commit commit --type fix --scope api
+/ct create --type fix --scope api
 
 # 重构提交
-/commit commit --type refactor
+/ct create --type refactor
 ```
 
 ### 提交并推送
 
 ```bash
 # 提交并推送到当前分支
-/commit commit --push
+/ct create --push
 
 # 推送到指定分支
-/commit commit --push-to origin/main
+/ct create --push-to origin/main
 ```
 
 ### 代码检查
 
 ```bash
 # 提交前运行所有检查
-/commit commit --check-all
+/ct create --check-all
 
 # 只运行 lint 检查
-/commit commit --check-lint
+/ct create --check-lint
 ```
 
 > 💡 更多示例和高级用法请参考 [commit 技能文档](../skills/commit/SKILL.md)
@@ -159,10 +159,10 @@ description: 智能化的 Git 提交命令，自动分析代码变更并生成�
 ## 常见问题
 
 ### Q: 没有暂存的变更怎么办？
-A: 使用 `git add` 暂存文件，或使用 `/commit commit --auto` 自动暂存所有变更。
+A: 使用 `git add` 暂存文件，或使用 `/ct create --auto` 自动暂存所有变更。
 
 ### Q: 如何修改已提交的信息？
-A: 使用 `--amend` 参数：`/commit commit --amend`
+A: 使用 `--amend` 参数：`/ct create --amend`
 
 ### Q: 推送失败怎么办？
 A: 先拉取最新变更：`git pull --rebase origin main`，然后重新推送。
