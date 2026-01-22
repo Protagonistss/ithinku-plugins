@@ -1,3 +1,8 @@
+---
+name: security-review
+description: 代码安全审查与漏洞风险评估能力。
+---
+
 # Skill: Security Review
 
 专业的安全审查技能，能够识别代码中的安全漏洞、评估安全风险并提供防护建议。

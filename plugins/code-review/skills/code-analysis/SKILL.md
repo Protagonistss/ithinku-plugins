@@ -1,3 +1,8 @@
+---
+name: code-analysis
+description: 代码质量与复杂度等静态分析能力，提供改进建议与报告。
+---
+
 # Skill: Code Analysis
 
 专业的代码分析技能，能够深入评估代码质量、识别潜在问题并提供改进建议。

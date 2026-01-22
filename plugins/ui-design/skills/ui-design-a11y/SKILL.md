@@ -1,5 +1,5 @@
 ---
-name: a11y-check
+name: ui-design-a11y
 description: 无障碍设计审查与修复能力。
 ---
 

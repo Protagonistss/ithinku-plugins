@@ -21,6 +21,8 @@ assistant: [使用 security-expert 评估 JWT 实现的安全性并提供最佳�
 </example>
 color: red
 keywords: [安全专家, security, 漏洞扫描, OWASP, 安全审查, 漏洞防范]
+skills:
+  - security-review
 ---
 
 # Agent: SecurityExpert

@@ -19,6 +19,10 @@ assistant: [使用 test-expert 分析当前测试覆盖情况并提供改进策�
 用户询问"测试覆盖率"和"改进建议"，应使用 test-expert
 </commentary>
 </example>
+skills:
+  - test-generation
+  - mock-generation
+  - assertion-helper
 ---
 
 # Test Expert - 测试专家代理

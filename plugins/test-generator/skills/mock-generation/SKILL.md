@@ -1,3 +1,8 @@
+---
+name: mock-generation
+description: 生成测试所需的 Mock 数据与 Stub 函数。
+---
+
 # Mock生成技能
 
 这个技能专门负责生成测试所需的Mock数据和Stub函数，帮助隔离测试环境并提高测试效率。
