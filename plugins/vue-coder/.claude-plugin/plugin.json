@@ -1,0 +1,11 @@
+{
+  "name": "vue-coder",
+  "version": "0.0.1",
+  "description": "专业的Vue代码生成工具，提供Vue2/3双版本支持，包含组件生成、代码优化和最佳实践建议",
+  "author": {
+    "name": "huangshan",
+    "email": "protagonisths@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": ["vue", "vue2", "vue3", "composition-api", "options-api", "best-practices"]
+}

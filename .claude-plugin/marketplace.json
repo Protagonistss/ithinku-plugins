@@ -24,6 +24,14 @@
       "category": "development-tools"
     },
     {
+      "name": "vue-coder",
+      "description": "专业的Vue代码生成工具，提供Vue2/3双版本支持，包含组件生成、代码优化和最佳实践建议",
+      "source": "./plugins/vue-coder",
+      "version": "0.0.1",
+      "keywords": ["vue", "vue2", "vue3", "composition-api", "options-api", "best-practices"],
+      "category": "development-tools"
+    },
+    {
       "name": "git-tools",
       "description": "智能Git工具集，提供自动化提交、分支管理和Git工作流优化",
       "source": "./plugins/git-tools",
