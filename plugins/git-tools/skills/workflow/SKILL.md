@@ -1,7 +1,7 @@
 ---
 name: workflow
 description: 团队工作流管理技能 - 协作规范、自动化流程和最佳实践。用于初始化工作流、创建功能分支、分配代码审查或发布版本。
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: [init|start-feature|assign-review|release] [args...]
 ---
 
