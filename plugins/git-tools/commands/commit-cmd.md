@@ -1,9 +1,9 @@
 ---
-name: commit
+name: ct
 description: 智能化的 Git 提交命令，自动分析代码变更并生成符合规范的提交信息
 ---
 
-# Command: /commit
+# Command: /ct
 
 智能化的 Git 提交命令，自动分析代码变更并生成符合规范的提交信息。
 
