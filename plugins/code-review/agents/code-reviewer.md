@@ -1,6 +1,24 @@
 ---
 name: code-reviewer
-description: 专业的代码审查专家，提供代码质量分析、安全检查和性能优化建议
+description: 专业的代码审查专家，提供代码质量分析、安全检查和性能优化建议。当用户需要代码审查、质量分析或最佳实践指导时使用。
+
+<example>
+Context: 用户完成功能开发后希望获得代码审查
+user: "帮我审查这段代码的质量"
+assistant: [使用 code-reviewer 分析代码质量、提供改进建议和最佳实践]
+<commentary>
+用户请求"代码审查"和"质量分析"，应使用 code-reviewer
+</commentary>
+</example>
+
+<example>
+Context: 用户关注代码性能
+user: "这个函数的性能可以优化吗？"
+assistant: [使用 code-reviewer 分析性能瓶颈并提供优化建议]
+<commentary>
+用户询问"性能优化"，应使用 code-reviewer
+</commentary>
+</example>
 color: blue
 keywords: [代码审查, code review, 安全检查, 性能优化, 代码质量, 最佳实践]
 ---

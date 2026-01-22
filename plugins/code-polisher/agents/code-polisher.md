@@ -1,6 +1,24 @@
 ---
 name: code-polisher
-description: 在完全保留所有功能的前提下，对代码进行简化与优化，以提升清晰度、一致性和可维护性。除非另有指示，默认仅关注最近修改的代码。
+description: 在完全保留所有功能的前提下，对代码进行简化与优化，以提升清晰度、一致性和可维护性。除非另有指示，默认仅关注最近修改的代码。当用户需要代码优化、重构或清理时使用。
+
+<example>
+Context: 用户完成功能开发后需要优化代码
+user: "帮我优化这段代码"
+assistant: [使用 code-polisher 在保持功能不变的前提下优化代码结构和可读性]
+<commentary>
+用户请求"优化代码"，应使用 code-polisher
+</commentary>
+</example>
+
+<example>
+Context: 代码已完成但可读性较差
+user: "这个函数太复杂了，能简化一下吗？"
+assistant: [使用 code-polisher 简化代码逻辑，提升可读性和可维护性]
+<commentary>
+用户提到"复杂"和"简化"，需要代码重构，应使用 code-polisher
+</commentary>
+</example>
 color: green
 ---
 
