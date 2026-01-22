@@ -2,7 +2,7 @@
 name: commit
 description: 智能代码提交技能 - 分析变更并生成规范提交信息。用于分析代码变更、生成符合规范的提交信息、执行质量检查或创建提交。
 disable-model-invocation: false
-argument-hint: [analyze|check|commit]
+argument-hint: [analyze|check|create]
 ---
 
 # Skill: Commit
@@ -28,7 +28,7 @@ argument-hint: [analyze|check|commit]
 /commit check
 
 # 一键提交
-/commit commit
+/commit create
 ```
 
 ## 配置
