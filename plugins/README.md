@@ -22,18 +22,70 @@
 
 [查看详情](code-review/README.md)
 
-### 2. Dev Tools Plugin（开发工具插件）
+### 2. Git Tools Plugin（Git 工具插件）
 
-面向开发者的专业工具集。
+智能 Git 工具集，提供自动化提交、分支管理和 Git 工作流优化。
 
 **功能**：
-- 🚀 代码生成（/gen）
-- 🏗️ 架构设计专家（Architect）
-- 🔧 重构技能
+- 📦 智能提交与分支管理
+- 🔧 Git 工作流优化
+- 🤖 Git 专家（GitExpert）
 
-**使用场景**：代码开发、架构设计、代码重构
+**使用场景**：Git 操作自动化、提交规范化、分支管理
 
-[查看详情](dev-tools/README.md)
+[查看详情](git-tools/README.md)
+
+### 3. React Coder Plugin（React 代码生成插件）
+
+专业的 React 代码生成工具。
+
+**功能**：
+- ⚛️ 组件生成与优化
+- 📝 最佳实践建议
+- 🚀 代码生成能力
+
+**使用场景**：React 组件开发、代码重构、最佳实践应用
+
+[查看详情](react-coder/README.md)
+
+### 4. Test Generator Plugin（测试生成插件）
+
+专业的单元测试生成工具。
+
+**功能**：
+- 🧪 单元测试生成（/test）
+- 📊 覆盖率分析（/coverage）
+- 🤖 测试专家（TestExpert）
+
+**使用场景**：单元测试编写、Mock 数据生成、测试覆盖率提升
+
+[查看详情](test-generator/README.md)
+
+### 5. UI Design Plugin（UI 设计插件）
+
+专注于生成高质量的前端界面。
+
+**功能**：
+- 🎨 独特审美与 Bold Direction
+- 🖼️ 生产级界面生成
+- ♿ 无障碍设计支持
+
+**使用场景**：UI 界面设计、无障碍优化、视觉风格统一
+
+[查看详情](ui-design/README.md)
+
+### 6. Code Polisher Plugin（代码润色插件）
+
+专业的代码优化工具，在保持功能不变的前提下，提供代码简化、优化和规范化处理。
+
+**功能**：
+- ✨ 代码简化与优化
+- 📏 规范化处理
+- 🤖 代码润色专家（CodePolisher）
+
+**使用场景**：代码重构、代码清理、规范统一
+
+[查看详情](code-polisher/README.md)
 
 ## 插件结构
 

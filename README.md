@@ -18,9 +18,12 @@ Claude Code 支持通过插件系统扩展功能。本仓库用于：
 ```
 claude-plugins/
 ├── plugins/                      # 插件目录
+│   ├── code-polisher/           # 代码润色插件
 │   ├── code-review/             # 代码审查插件
-│   ├── dev-tools/               # 开发工具插件
-│   └── unit-test-generator/     # 单元测试生成插件
+│   ├── git-tools/               # Git 工具插件
+│   ├── react-coder/             # React 代码生成插件
+│   ├── test-generator/          # 测试生成插件
+│   └── ui-design/               # UI 设计插件
 ├── shared/                       # 共享资源
 │   ├── prompts/                 # 通用提示词片段
 │   └── templates/               # 通用模板
@@ -224,10 +227,10 @@ plugin-name/
 
 ```
 开发流程示例：
-1. /gen feature          → 生成功能代码（dev-tools）
-2. /test src/feature.js  → 生成测试（unit-test-generator）
+1. @ReactCoder 生成组件   → 生成 React 组件（react-coder）
+2. /test src/feature.js  → 生成测试（test-generator）
 3. /review               → 代码审查（code-review）
-4. /commit --push        → 提交代码（dev-tools）
+4. /ct create --push     → 提交代码（git-tools）
 ```
 
 ## 开发新插件

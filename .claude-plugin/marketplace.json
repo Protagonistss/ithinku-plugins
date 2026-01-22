@@ -16,11 +16,11 @@
       "category": "development-tools"
     },
     {
-      "name": "dev-tools",
-      "description": "面向开发者的专业工具集，提供代码生成、架构设计和重构支持",
-      "source": "./plugins/dev-tools",
+      "name": "react-coder",
+      "description": "专业的React代码生成工具，提供组件生成、代码优化和最佳实践建议",
+      "source": "./plugins/react-coder",
       "version": "0.0.1",
-      "keywords": ["development", "code-generation", "architecture", "refactoring"],
+      "keywords": ["react", "code-generation", "best-practices", "hooks"],
       "category": "development-tools"
     },
     {
