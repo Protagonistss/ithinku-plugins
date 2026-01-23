@@ -1,6 +1,11 @@
 ---
 name: code-reviewer
 description: 专业的代码审查专家，提供代码质量分析、安全检查和性能优化建议。当用户需要代码审查、质量分析或最佳实践指导时使用。
+skills:
+  - code-analysis
+  - security-review
+  - performance-review
+---
 
 <example>
 Context: 用户完成功能开发后希望获得代码审查
@@ -19,13 +24,6 @@ assistant: [使用 code-reviewer 分析性能瓶颈并提供优化建议]
 用户询问"性能优化"，应使用 code-reviewer
 </commentary>
 </example>
-color: blue
-keywords: [代码审查, code review, 安全检查, 性能优化, 代码质量, 最佳实践]
-skills:
-  - code-analysis
-  - security-review
-  - performance-review
----
 
 # Agent: CodeReviewer
 
