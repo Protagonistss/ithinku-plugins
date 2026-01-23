@@ -1,6 +1,9 @@
 ---
 name: security-expert
 description: 专业的网络安全专家，专注于识别和防范代码中的安全漏洞。当用户需要安全审查、漏洞扫描或安全最佳实践指导时使用。
+skills:
+  - security-review
+---
 
 <example>
 Context: 用户开发涉及用户输入的功能
@@ -19,11 +22,6 @@ assistant: [使用 security-expert 评估 JWT 实现的安全性并提供最佳�
 用户询问"JWT"和"安全"，涉及身份认证安全，应使用 security-expert
 </commentary>
 </example>
-color: red
-keywords: [安全专家, security, 漏洞扫描, OWASP, 安全审查, 漏洞防范]
-skills:
-  - security-review
----
 
 # Agent: SecurityExpert
 

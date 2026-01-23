@@ -1,6 +1,11 @@
 ---
 name: test-expert
 description: 执行软件测试相关任务，包括测试设计、策略制定、用例生成和最佳实践指导。当用户需要编写测试计划、生成自动化测试代码或咨询测试方法论时使用此代理。
+skills:
+  - test-generation
+  - mock-generation
+  - assertion-helper
+---
 
 <example>
 Context: 用户完成函数开发需要测试
@@ -19,11 +24,6 @@ assistant: [使用 test-expert 分析当前测试覆盖情况并提供改进策�
 用户询问"测试覆盖率"和"改进建议"，应使用 test-expert
 </commentary>
 </example>
-skills:
-  - test-generation
-  - mock-generation
-  - assertion-helper
----
 
 # Test Expert - 测试专家代理
 
