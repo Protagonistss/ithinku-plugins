@@ -2,8 +2,6 @@
 
 本仓库是一个专为 **Claude Code** 打造的插件集成与开发环境。它旨在通过自定义命令、智能代理（Agents）和专业技能（Skills），将 Claude 转化为更强大的工程助手。
 
-## 📂 项目结构
-
 ```text
 ithinku-plugins/
 ├── plugins/                    # 插件核心目录
