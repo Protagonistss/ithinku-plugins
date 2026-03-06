@@ -1,6 +1,7 @@
 ---
 name: code-analysis
 description: 代码质量与复杂度等静态分析能力，提供改进建议与报告。
+disable-model-invocation: false
 ---
 
 # Skill: Code Analysis
@@ -45,6 +46,22 @@ Code Analysis 技能提供全面的代码静态分析能力，包括代码质量
 - **Go**: 标准库和常用框架
 - **Ruby**: Ruby on Rails
 - **PHP**: Laravel、Symfony
+
+## 使用方法
+
+```bash
+# 分析单个文件
+/code-analysis src/components/UserProfile.jsx
+
+# 分析整个目录
+/code-analysis src/services/ --depth deep
+
+# 生成分析报告
+/code-analysis src/ --format report --output analysis-report.md
+
+# 专注特定问题类型
+/code-analysis src/utils/calculator.js --focus complexity
+```
 
 ## 分析维度
 

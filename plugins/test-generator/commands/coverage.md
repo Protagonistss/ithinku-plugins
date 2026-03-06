@@ -1,3 +1,10 @@
+---
+name: coverage
+description: 分析测试覆盖率，识别未覆盖的代码路径，并生成补充测试用例。
+skills:
+  - test-generation
+---
+
 # 测试覆盖率分析命令
 
 分析测试覆盖率，识别未覆盖的代码路径，并生成补充测试用例。

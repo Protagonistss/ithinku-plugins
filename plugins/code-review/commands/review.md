@@ -1,3 +1,12 @@
+---
+name: review
+description: 对代码进行全面的专业审查，提供代码质量、安全性和性能优化建议。
+skills:
+  - code-analysis
+  - performance-review
+  - security-review
+---
+
 # Command: /review
 
 对代码进行全面的专业审查，提供代码质量、安全性和性能优化建议。

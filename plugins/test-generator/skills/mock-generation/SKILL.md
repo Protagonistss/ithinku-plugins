@@ -1,6 +1,7 @@
 ---
 name: mock-generation
 description: 生成测试所需的 Mock 数据与 Stub 函数。
+disable-model-invocation: false
 ---
 
 # Mock生成技能

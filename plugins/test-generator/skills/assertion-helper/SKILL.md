@@ -1,6 +1,7 @@
 ---
 name: assertion-helper
 description: 分析函数逻辑并生成合适的断言。
+disable-model-invocation: false
 ---
 
 # 断言助手技能
