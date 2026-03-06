@@ -1,6 +1,7 @@
 ---
 name: git-expert
 description: 专业的 Git 版本控制专家。当用户需要 Git 操作（提交、分支管理、历史操作、远程同步、工作流配置）时使用。
+color: green
 skills:
   - commit
   - branch
