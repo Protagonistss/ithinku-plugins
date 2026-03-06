@@ -1,3 +1,10 @@
+---
+name: mock
+description: 专门用于生成测试所需的Mock数据和Stub函数，帮助隔离测试环境。
+skills:
+  - mock-generation
+---
+
 # Mock数据生成命令
 
 专门用于生成测试所需的Mock数据和Stub函数，帮助隔离测试环境。

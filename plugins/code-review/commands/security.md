@@ -1,3 +1,10 @@
+---
+name: security
+description: 专门进行代码安全审查，识别潜在的安全漏洞和风险。
+skills:
+  - security-review
+---
+
 # Command: /security
 
 专门进行代码安全审查，识别潜在的安全漏洞和风险。

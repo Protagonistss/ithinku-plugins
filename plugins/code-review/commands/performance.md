@@ -1,3 +1,10 @@
+---
+name: performance
+description: 专门进行代码性能分析，识别性能瓶颈和优化机会。
+skills:
+  - performance-review
+---
+
 # Command: /performance
 
 专门进行代码性能分析，识别性能瓶颈和优化机会。

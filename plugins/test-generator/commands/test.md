@@ -1,3 +1,12 @@
+---
+name: test
+description: 为指定的文件、函数或类生成单元测试用例。
+skills:
+  - test-generation
+  - assertion-helper
+  - mock-generation
+---
+
 # 单元测试生成命令
 
 为指定的文件、函数或类生成单元测试用例。

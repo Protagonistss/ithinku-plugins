@@ -1,6 +1,7 @@
 ---
 name: test-generation
 description: 分析源代码并生成对应的单元测试用例。
+disable-model-invocation: false
 ---
 
 # 单元测试生成技能

@@ -25,9 +25,6 @@ claude-plugins/
 │   ├── test-generator/          # 测试生成插件
 │   ├── ui-design/               # UI 设计插件
 │   └── vue-coder/               # Vue 代码生成插件
-├── shared/                       # 共享资源
-│   ├── prompts/                 # 通用提示词片段
-│   └── templates/               # 通用模板
 ├── .claude-plugin/               # 插件市场配置
 │   └── marketplace.json          # 插件元数据和发布信息
 ├── .gitignore                   # Git 忽略文件
@@ -315,8 +312,6 @@ mkdir -p .claude-plugin commands agents skills hooks
 
 - [Claude Code 官方文档](https://docs.anthropic.com/claude-code)
 - [插件市场配置](.claude-plugin/marketplace.json)
-- [共享提示词模板](shared/prompts/)
-- [配置模板](shared/templates/)
 
 ## 许可证
 

@@ -1,6 +1,7 @@
 ---
 name: vue3-best-practices
 description: Vue 3 开发最佳实践指南，涵盖 Composition API, Script Setup, Pinia, TypeScript 集成及性能优化。
+disable-model-invocation: false
 ---
 
 # Vue 3 Best Practices
