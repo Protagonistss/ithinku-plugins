@@ -1,6 +1,10 @@
 ---
 name: vue3-best-practices
-description: Vue 3 开发最佳实践指南，涵盖 Composition API, Script Setup, Pinia, TypeScript 集成及性能优化。
+description: |
+  Vue 3 开发最佳实践指南 - Composition API、Script Setup、Pinia、TypeScript 集成及性能优化。
+  当用户说"Vue 3组件"、"Composition API"、"script setup"、"Pinia"、"Vue 3项目"、"ref reactive"、"defineProps defineEmits"、"Composable"、"Vue 3优化"时使用此技能。
+  涵盖：Script Setup 与 Composition API、响应式数据选择（ref vs reactive）、组件通信（Props/Emits/v-model/Slots）、Composables 设计模式、Pinia Setup Store、性能优化（v-memo、shallowRef、KeepAlive）。
+  提供 TypeScript 代码示例、反模式对照表、迁移指南和示例文件引用。
 disable-model-invocation: false
 ---
 

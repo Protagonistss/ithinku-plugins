@@ -1,6 +1,10 @@
 ---
 name: react-best-practices
-description: React 开发最佳实践指南，涵盖组件设计、Hooks 使用、状态管理及性能优化。
+description: |
+  React 开发最佳实践指南 - 组件设计、Hooks 使用、状态管理及性能优化。
+  当用户说"React组件"、"React Hooks"、"React状态管理"、"useEffect"、"useState"、"useCallback"、"React性能"、"React优化"、"React反模式"、"React重构"时使用此技能。
+  涵盖：组件设计原则（组合优于继承、单一职责）、Hooks 最佳实践（依赖数组、自定义 Hook）、状态管理（服务端状态用 React Query、客户端状态用 Zustand）、性能优化（memo、useMemo、代码分割）。
+  提供 TypeScript 代码示例、反模式警告和最佳实践检查清单。
 disable-model-invocation: false
 ---
 

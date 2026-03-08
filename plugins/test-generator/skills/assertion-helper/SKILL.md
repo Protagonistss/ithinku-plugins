@@ -1,6 +1,10 @@
 ---
 name: assertion-helper
-description: 分析函数逻辑并生成合适的断言。
+description: |
+  分析函数逻辑并生成合适的断言。
+  当用户说"生成断言"、"写断言"、"expect语句"、"assert断言"、"验证返回值"、"测试验证"、"断言代码"时使用此技能。
+  支持多框架断言生成：Jest (expect)、Vitest (expect)、Python (assert/pytest)。
+  生成类型断言、边界值验证、深度对象比较、Mock调用验证、副作用验证、异步断言。输出精确、可维护的断言代码。
 disable-model-invocation: false
 ---
 

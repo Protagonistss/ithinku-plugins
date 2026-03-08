@@ -1,6 +1,10 @@
 ---
 name: security-review
-description: 代码安全审查与漏洞风险评估能力。
+description: |
+  代码安全审查与漏洞风险评估能力。
+  当用户说"安全审查"、"安全检查"、"漏洞扫描"、"SQL注入"、"XSS"、"CSRF"、"OWASP"、"安全风险"、"代码安全"、"渗透测试"时使用此技能。
+  基于 OWASP Top 10 标准，检测注入攻击（SQL/NoSQL/命令注入）、XSS、访问控制失效、加密机制失效、敏感数据泄露等安全问题。
+  输出包含 CVSS 评分、漏洞详情和修复代码示例。
 disable-model-invocation: false
 ---
 
