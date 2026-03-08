@@ -1,6 +1,10 @@
 ---
 name: test-generation
-description: 分析源代码并生成对应的单元测试用例。
+description: |
+  分析源代码并生成对应的单元测试用例。
+  当用户说"生成测试"、"写单元测试"、"添加测试用例"、"测试覆盖"、"单元测试"、"vitest测试"、"jest测试"、"pytest测试"、"测试代码"时使用此技能。
+  支持多种语言和框架：JavaScript/TypeScript (Jest, Vitest, Mocha)、Python (pytest, unittest)、Java (JUnit 5, TestNG)。
+  自动生成：正常流程测试、边界条件测试、异常情况测试、Mock 配置。输出遵循 AAA 模式的高质量测试代码。
 disable-model-invocation: false
 ---
 

@@ -1,6 +1,10 @@
 ---
 name: mock-generation
-description: 生成测试所需的 Mock 数据与 Stub 函数。
+description: |
+  生成测试所需的 Mock 数据与 Stub 函数。
+  当用户说"生成mock"、"创建mock"、"模拟数据"、"mock函数"、"stub函数"、"测试数据"、"模拟API"、"mock数据库"时使用此技能。
+  支持多框架 Mock：Jest (jest.fn/mock)、Vitest (vi.fn/vi.mock)、Python (unittest.mock/pytest-mock)。
+  生成 Mock 模块、Stub 函数、测试数据工厂、API 响应 Mock、数据库 Mock、时间 Mock。输出完整的 Mock 配置代码。
 disable-model-invocation: false
 ---
 

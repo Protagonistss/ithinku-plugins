@@ -1,6 +1,10 @@
 ---
 name: vue2-best-practices
-description: Vue 2 维护与开发最佳实践指南，涵盖 Options API, Vuex 及向 Vue 3 迁移的准备。
+description: |
+  Vue 2 维护与开发最佳实践指南 - Options API、Vuex 及向 Vue 3 迁移准备。
+  当用户说"Vue 2组件"、"Options API"、"Vuex"、"Vue 2项目"、"Vue 2迁移"、"Vue mixin"、"Vue 2最佳实践"时使用此技能。
+  涵盖：Options API 规范（选项顺序、props 验证）、Vuex 模块化（namespaced modules）、逻辑复用（避免 mixin，使用工具函数）、迁移准备（停止使用 Filters、引入 Composition API 插件）。
+  提供 Vue 2 代码示例、反模式警告和迁移建议。
 disable-model-invocation: false
 ---
 
