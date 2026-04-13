@@ -1,60 +1,25 @@
 # Code Cleanup Plugin
 
-面向任意项目的安全清理插件，支持多语言（JS/TS/Python/Go/Java/PHP/Ruby/Rust/C++），用于识别未引用模块、未使用组件和历史死代码，并生成"可执行但默认不自动删除"的候选报告。
+面向任意项目的多语言安全清理插件，支持 JS/TS、Python、Go、Java、PHP、Ruby、Rust、C++ 等多门语言。用于识别未引用模块、未使用组件和历史死代码，并生成可视化交互报告与 AI 辅助的自动化清理方案。
 
 ## 核心能力
 
-- 未引用模块识别（页面、组件、服务、工具类等，通过 `config/scan-dirs.txt` 配置）
-- 历史备份/死代码识别（`*-copy.*`, `*-bf.*`, `*-old.*` 等）
-- 风险分级输出（`high` / `medium` / `low`）
-- 生成清理报告与回滚友好的补丁计划
+- **多语言引用识别**：识别各语言 import/require 语法的精确引用（JS/TS/Py/Go/Java 等）。
+- **交互式可视化报告**：生成带风险统计卡片和可折叠表格的 HTML 报告。
+- **AI 自动化清理闭环**：Agent 可根据扫描结果，在用户确认后自动执行文件清理。
+- **历史死代码识别**：自动发现 `*-copy.*`, `*-bf.*`, `*-old.*` 等备份残留。
+- **风险分级策略**：提供 `high` / `medium` / `low` 风险评估，确保清理安全。
 
-## 配置文件
+## 产物说明
+
+执行完成后，在工作区生成以下产物：
 
 | 文件 | 用途 |
 |------|------|
-| `config/scan-dirs.txt` | 扫描目录、类别名、关键词策略 |
-| `config/ext-list.txt` | 参与扫描的文件扩展名 |
-| `config/keep-list.txt` | 白名单，始终保留的文件路径 |
-
-配置文件均不存在时使用内置默认值。
-
-## 目录结构
-
-```text
-plugins/code-cleanup/
-├─ README.md
-└─ skills/
-   └─ code-cleanup-skill/
-      ├─ SKILL.md
-      ├─ config/
-      │  ├─ scan-dirs.txt
-      │  ├─ ext-list.txt
-      │  └─ keep-list.txt
-      ├─ evals/
-      │  └─ evals.json
-      └─ scripts/
-         ├─ analyze_cleanup_candidates.py
-         └─ render_cleanup_report.py
-```
-
-## 标准执行流程
-
-```bash
-python plugins/code-cleanup/skills/code-cleanup-skill/scripts/analyze_cleanup_candidates.py \
-  --project-root . \
-  --output .skill-workspace/code-cleanup/latest/deletion-candidates.json
-
-python plugins/code-cleanup/skills/code-cleanup-skill/scripts/render_cleanup_report.py \
-  --input .skill-workspace/code-cleanup/latest/deletion-candidates.json \
-  --output-dir .skill-workspace/code-cleanup/latest
-```
-
-产物：
-
-- `cleanup-report.md`
-- `deletion-candidates.json`
-- `patch-plan.md`
+| `cleanup-report.html` | **核心交互式报告**，建议在浏览器查看 |
+| `cleanup-report.md` | 文本摘要报告 |
+| `deletion-candidates.json` | 机器可读数据，供 AI 执行自动清理 |
+| `patch-plan.md` | 补丁计划与回滚指南 |
 
 ## 安全边界
 

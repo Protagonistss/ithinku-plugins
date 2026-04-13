@@ -61,41 +61,48 @@ safety:
 
 说明：若不传 `--targets`，脚本会按当前工作空间自动扫描（`--project-root` 对应目录），并自动执行模块/死代码分析。
 
-## 工作流
+## 工作流 (Three-Phase Loop)
 
-### Step 1: 收集入口与引用关系
+必须遵循以下严格的三阶段闭环，确保清理过程可视化、可评审、可回滚。
 
-- 扫描路由入口、模块入口、全局注册
-- 扫描各语言的 import/require/include 语法
-- 扫描字符串引用（如路由跳转 `push('/x')`、路径拼接）
+### Phase 1: 扫描 (Scan)
+1. **自动识别入口**：扫描路由、模块入口及各语言 import 语法。
+2. **生成候选**：调用 `analyze_cleanup_candidates.py`。
+   - 默认扫描当前工作空间。
+   - 产出 `deletion-candidates.json`。
+3. **简要汇报**：Agent 需提取 JSON 中的 `summary` 向用户简要汇报高/中/低风险的数量。
 
-### Step 2: 识别候选清理对象
+### Phase 2: 评审 (Review)
+1. **生成可视化报告**：调用 `render_cleanup_report.py`。
+   - 产出 `cleanup-report.html` (交互式 HTML)、`cleanup-report.md` 和 `patch-plan.md`。
+2. **引导用户查看**：
+   - **必须**提供 `cleanup-report.html` 的本地绝对路径。
+   - **必须**提示用户：“已生成交互式报告，请在浏览器中打开以进行可视化确认。你可以点击路径旁边的图标快速复制代码路径。”
+3. **人工确认**：等待用户阅读报告并给出清理指令（例如：“清理所有高风险项”或“删除特定列表”）。
 
-根据 `config/scan-dirs.txt` 配置扫描各目录：
-- 未引用页面（`src/page/**`、`src/pages/**`）
-- 未使用组件（`src/components/**`）
-- 未使用模块（`src/services/**`、`src/utils/**`、`src/controllers/**` 等）
-- 死代码/历史文件（`*-copy.*`、`*-bf.*`、`*-old.*`）
+### Phase 3: 执行 (Execute)
+1. **自动化清理**：
+   - 根据用户指令，读取 `deletion-candidates.json` 获取对应的文件路径。
+   - 使用 `rm` 或 `git rm` 执行物理删除。
+   - **禁止** Agent 凭直觉猜测路径，必须以 JSON 记录为准。
+2. **后续验证**：
+   - 删除后提示用户运行项目测试或进行人工回归。
+   - 提供回滚建议（如 `git reset --hard` 或 `git checkout -- <file>`）。
 
-### Step 3: 风险分级
+## 生成结果规范 (Outputs)
 
-- `high`: 多轮检查均未发现引用，且不在入口白名单
-- `medium`: 命中部分弱引用线索（字符串、动态路径），需人工确认
-- `low`: 仅命中命名模式（如 old/copy/bf），证据较弱
+必须输出以下四个文件到工作区（默认路径 `.skill-workspace/code-cleanup/latest/`）：
 
-> 若命中"字符串路径/动态引用"弱引用线索，优先降级为 `medium`，避免误删。
-
-### Step 4: 生成结果
-
-必须输出三个文件：
-
-1. `cleanup-report.md`
-   - 高/中/低风险分组
-   - 每个候选包含路径、类型、证据、建议动作
-2. `deletion-candidates.json`
-   - 机器可读候选列表，含 `risk_level` 与 `evidence`
-3. `patch-plan.md`
-   - 删除/替换步骤、依赖影响、回滚命令
+1. `cleanup-report.html` (核心)
+   - 包含高置信度风险统计卡片。
+   - 支持按风险等级折叠/展开的交互式表格。
+   - 支持一键复制路径。
+2. `cleanup-report.md`
+   - 供 AI Agent 快速检索和在终端展示的摘要。
+3. `deletion-candidates.json`
+   - 供 AI Agent 执行 Phase 3 时读取的机器可读数据。
+4. `patch-plan.md`
+   - 包含回滚命令、依赖影响分析及手动操作建议。
 
 ## 输出格式规范
 
