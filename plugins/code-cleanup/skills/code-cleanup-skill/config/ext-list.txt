@@ -1,0 +1,24 @@
+# 扫描的文件扩展名（每行一个）
+# 用于构建引用池，检测未引用的模块、组件和死代码
+# 前端
+.js
+.ts
+.vue
+.jsx
+.tsx
+.html
+.json
+.scss
+.css
+.less
+# 后端
+.py
+.go
+.java
+.php
+.rb
+.rs
+.c
+.cpp
+.h
+.hpp

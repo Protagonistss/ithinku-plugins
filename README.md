@@ -1,86 +1,125 @@
-# 🚀 Claude Code 插件开发库 (ithinku-plugins)
+<h1 align="center">🚀 Claude Code Plugin Repository</h1>
 
-本仓库是一个专为 **Claude Code** 打造的插件集成与开发环境。它旨在通过自定义命令、智能代理（Agents）和专业技能（Skills），将 Claude 转化为更强大的工程助手。
+<p align="center">
+  <strong>专为 <a href="https://claude.ai/code">Claude Code</a> 打造的插件集成与开发套件</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Development-yellow.svg" alt="Status">
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
+  <img src="https://img.shields.io/badge/Version-1.0.0-green.svg" alt="Version">
+  <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen.svg" alt="PRs Welcome">
+</p>
+
+<p align="center">
+  本仓库提供了一系列自定义命令、智能代理（Agents）和专业技能（Skills），将 Claude 转化为更强大的工程助手。
+</p>
+
+---
+
+## 📂 核心架构
+
+使用更清晰的树状结构直观了解项目布局：
 
 ```text
 ithinku-plugins/
-├── plugins/                    # 插件核心目录
-│   ├── code-polisher/         # 代码润色：自动优化代码风格与可读性
-│   ├── code-review/           # 代码审查：安全、性能及质量全方位检查
-│   ├── git-tools/             # Git 助手：智能提交、分支管理及工作流
-│   ├── react-coder/           # React 专家：最佳实践与组件生成
-│   ├── test-generator/        # 测试生成：单元测试、Mock 及覆盖率分析
-│   ├── ui-design/             # UI/UX 设计：可访问性与核心设计规范
-│   └── vue-coder/             # Vue 专家：Vue 2/3 组合式 API 支持
-├── .claude-plugin/             # 插件市场元数据
-└── README.md                   # 项目主文档
+├── plugins/                    # 🛠️ 插件核心目录
+│   ├── code-cleanup/          # 🔹 代码清理：多语言/跨平台项目瘦身，智能识别未引用资源与死代码
+│   ├── code-polisher/         # 🔹 代码润色：自动优化风格与可读性
+│   ├── code-review/           # 🔹 代码审查：安全、性能及质量检查
+│   ├── git-tools/             # 🔹 Git 助手：智能提交、分支管理及流转
+│   ├── react-coder/           # 🔹 React 专家：最佳实践与组件生成
+│   ├── test-generator/        # 🔹 测试生成：单元测试、Mock 及覆盖率
+│   ├── ui-design/             # 🔹 UI/UX 设计：可访问性与核心规范
+│   └── vue-coder/             # 🔹 Vue 专家：Vue 2/3 组合式 API 支持
+├── .claude-plugin/             # 🧩 插件市场元数据 (marketplace.json)
+└── README.md                   # 📄 项目总控中心
 ```
 
-## 🛠️ 快速开始
+---
 
-### 1. 插件安装
-在 Claude Code 会话中，使用 `/plugin add` 命令添加本地插件：
+## 🛠️ 安装指南
+
+您可以根据需要通过 **Claude 官方市场**、**GitHub 远程地址** 或 **本地开发目录** 进行安装。
+
+### 1. 通过 Claude 官方市场安装 (Recommended)
+如果插件已发布到官方市场，您只需输入插件名称：
 
 ```bash
-# 进入本仓库根目录后启动 Claude Code
-claude
-
-# 在 Claude Code 终端中执行安装命令
-/plugin add ./plugins/code-review
-/plugin add ./plugins/git-tools
-# ...以此类推
+# 在 Claude Code 终端执行
+/plugin add code-review
+/plugin add git-tools
 ```
 
-或者手动将插件目录复制到 Claude 的全局插件目录：
-- **Windows**: `%USERPROFILE%\.claude\plugins\`
-- **macOS/Linux**: `~/.claude/plugins/`
+### 2. 通过 GitHub 远程地址安装
+直接从本仓库的远程地址安装最新版本，无需克隆代码：
 
-### 2. 使用插件
-安装后，插件提供的命令通常带有命名空间前缀。格式为：`/插件名:命令名`。
+```bash
+# 格式: /plugin add {GitHub_URL}
+# 示例：安装代码审查插件
+/plugin add https://github.com/Protagonistss/ithinku-plugins/tree/main/plugins/code-review
 
-例如：
-- `/code-review:review` - 执行代码审查
-- `/git-tools:ct-cmd` - 执行 Git 提交助手
+# 示例：安装代码清理插件 (Code Cleanup)
+/plugin add https://github.com/Protagonistss/ithinku-plugins/tree/main/plugins/code-cleanup
+```
+
+### 3. 本地开发安装 (Local Development)
+如果您已克隆本仓库到本地，可以使用相对路径进行安装：
+
+```bash
+# 在本仓库根目录下执行
+/plugin add ./plugins/code-review
+```
+
+> [!TIP]
+> **独立 Skill 安装：** 如果您只需要插件中的某项特定功能（例如代码分析技能），可以精准指向 `skills` 子目录进行安装：
+> ```bash
+> /plugin add ./plugins/code-review/skills/code-analysis
+> ```
 
 ---
 
-## 🧩 现有插件一览
+## 🧩 现有插件图谱
 
-| 插件名称 | 核心功能 | 触发示例 |
+| 插件名称 | 核心功能描述 | 触发方式 |
 | :--- | :--- | :--- |
-| **Code Review** | 代码质量、安全、性能审查 | `/code-review:review` |
-| **Git Tools** | 语义化提交、分支策略、历史分析 | `/git-tools:ct-cmd`, `@git-expert` |
-| **Test Gen** | 自动生成测试用例、Mock 数据 | `/test-generator:test` |
-| **Code Polisher**| 提升代码可读性与表达力 | `@code-polisher` |
-| **Frameworks** | React/Vue 框架开发支持 | `@react-coder`, `@vue-coder` |
-| **UI Design** | 界面设计规范与辅助功能检查 | `@ui-design` |
+| **🔍 Code Review** | 聚焦代码质量、安全性与性能审查 | `/code-review:review` |
+| **🧹 Code Cleanup** | **[NEW]** 多语言(JS/TS, Py, Go等)项目深度扫描，识别未引用文件、死代码及备份，生成安全清理报告 | 智能触发 ("清理代码" / "项目瘦身") |
+| **🌳 Git Tools** | 语义化提交、分支管理与历史分析 | `/git-tools:ct-cmd` \| `@git-expert` |
+| **🧪 Test Gen** | 自动生成测试用例、Mock 与覆盖率 | `/test-generator:test` |
+| **✨ Code Polisher**| 提升代码可读性与表达力 | `@code-polisher` |
+| **📦 Frameworks** | React / Vue 2 & 3 生态深度支持 | `@react-coder` \| `@vue-coder` |
+| **🎨 UI Design** | 界面设计规范与 Accessibility 巡检 | `@ui-design` |
 
 ---
 
-## 🏗️ 插件开发标准
+## 🏗️ 插件开发指南
 
-每个插件应遵循以下标准目录结构，以确保兼容性：
+欢迎为库贡献新的功能。请确保每个插件遵循以下标准结构：
 
 ```bash
 plugin-name/
-├── .claude-plugin/
-│   └── plugin.json      # 必填：插件元数据（名称、版本、描述）
-├── skills/              # 可选：自定义斜杠命令 (每个命令一个文件夹/SKILL.md)
-├── agents/              # 可选：特定角色的智能代理 (.md)
-├── hooks/               # 可选：生命周期或事件钩子 (hooks.json)
+├── .claude-plugin/      # 必填：插件元数据
+│   └── plugin.json      # 核心配置 (名称、版本、描述)
+├── skills/              # 可选：自定义斜杠命令 (SKILL.md)
+├── agents/              # 可选：智能角色代理 (.md)
+├── hooks/               # 可选：生命周期钩子 (hooks.json)
 └── README.md            # 必填：插件使用说明书
 ```
 
-### 开发建议
-1. **命名规范**：文件夹使用 `kebab-case`（如 `my-plugin`），代理名使用 `PascalCase`（如 `@GitExpert`）。
-2. **命令调用**：本地添加的插件在调用时需注意命名空间，防止命令冲突。
-3. **路径测试**：开发时可使用 `claude --plugin-dir ./plugins/my-plugin` 快速预览。
+### 开发建议与规范
+1.  **命名标准**：
+    *   目录名：`kebab-case`（例：`my-awesome-plugin`）
+    *   代理名：`PascalCase`（例：`@AwesomeAgent`）
+2.  **调试技巧**：使用 `claude --plugin-dir ./plugins/my-plugin` 快速预览开发中的插件。
+3.  **安装冲突**：建议在本地安装时使用特定的命名空间前缀，以防与其他插件冲突。
 
 ---
 
 ## 🤝 贡献与反馈
-- **新增插件**：请在 `plugins/` 下创建新文件夹并补全文档。
-- **报告问题**：欢迎通过 Issue 或直接提交 PR 优化现有提示词。
+*   **提交新插件**：请在 `plugins/` 目录下创建新文件夹，并完善对应文档。
+*   **改进建议**：欢迎通过 **Issue** 或 **Pull Request** 提交对提示词的优化。
 
----
-**Happy Coding with Claude! 🚀**
+<p align="center">
+  <strong>Happy Coding with Claude! 🚀</strong>
+</p>

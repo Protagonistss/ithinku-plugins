@@ -1,0 +1,4 @@
+# 手工白名单：填入“始终保留”的路径（相对项目根目录）
+# 例如：
+# src/page/login/login-375/login-375.js
+# src/components/business/nodata.vue

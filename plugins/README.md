@@ -100,6 +100,20 @@
 
 [查看详情](vue-coder/README.md)
 
+### 8. Code Cleanup Plugin（代码清理插件）
+
+面向 Vue2 + webpack 项目的安全清理插件，识别未引用页面、未使用组件与历史死代码，并生成候选报告与回滚友好的补丁计划。
+
+**功能**：
+- 🧹 识别未引用页面（`src/page/**`）
+- 🧩 识别未使用组件（`src/components/**`）
+- 🗂️ 识别历史备份/死代码文件（`copy/bf/old`）
+- ⚠️ 风险分级输出（high/medium/low）
+
+**使用场景**：项目瘦身、历史包袱清理、回归前风险可控清理
+
+[查看详情](code-cleanup/README.md)
+
 ## 插件结构
 
 每个 Claude Code 插件都遵循以下标准结构：
