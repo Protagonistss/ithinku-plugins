@@ -2,6 +2,9 @@
 import argparse
 import json
 import re
+import os
+import subprocess
+import fnmatch
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +20,8 @@ IGNORE_DIRS = {
     "build",
     "coverage",
     ".cursor",
+    ".idea",
+    ".vscode",
     "static/lib",
     "__pycache__",
     "vendor",
@@ -130,16 +135,98 @@ def normalize_rel(path: Path, root: Path) -> str:
     return str(path.relative_to(root)).replace("\\", "/")
 
 
+def load_gitignore_patterns(root: Path) -> List[str]:
+    """向上查找并加载所有 .gitignore 模式。"""
+    patterns = []
+    current = root.resolve()
+    while True:
+        gitignore_path = current / ".gitignore"
+        if gitignore_path.is_file():
+            try:
+                with gitignore_path.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#"):
+                            patterns.append(line)
+            except Exception:
+                pass
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return patterns
+
+
+def is_ignored(path_str: str, patterns: List[str]) -> bool:
+    """检查路径是否匹配 .gitignore 模式（简单实现）。"""
+    for pattern in patterns:
+        if pattern.endswith("/"):
+            pattern = pattern[:-1]
+        # 支持相对路径匹配和文件名匹配
+        if fnmatch.fnmatch(path_str, pattern) or fnmatch.fnmatch(path_str.split("/")[-1], pattern) or \
+           fnmatch.fnmatch(path_str, f"*/{pattern}"):
+            return True
+    return False
+
+
 def collect_code_files(root: Path, exts: Set[str]) -> List[Path]:
+    """获取项目中的代码文件列表，优先使用 Git 以支持 .gitignore。"""
     files: List[Path] = []
-    for p in root.rglob("*"):
-        if not p.is_file():
-            continue
-        rel = str(p.relative_to(root)).replace("\\", "/")
-        if any(rel == x or rel.startswith(f"{x}/") for x in IGNORE_DIRS):
-            continue
-        if p.suffix.lower() in exts:
-            files.append(p)
+    
+    # 1. 优先尝试使用 Git 命令获取文件列表 (自动支持 .gitignore)
+    try:
+        # 已跟踪文件
+        cmd1 = ["git", "ls-files"]
+        res1 = subprocess.run(cmd1, cwd=root, capture_output=True, text=True, check=True)
+        
+        # 未跟踪但未被忽略的文件
+        cmd2 = ["git", "ls-files", "--others", "--exclude-standard"]
+        res2 = subprocess.run(cmd2, cwd=root, capture_output=True, text=True, check=True)
+        
+        all_git_files = res1.stdout.splitlines() + res2.stdout.splitlines()
+        
+        for rel_path in all_git_files:
+            if not rel_path:
+                continue
+            # 双重保险：排除硬编码的忽略目录
+            if any(rel_path == x or rel_path.startswith(f"{x}/") for x in IGNORE_DIRS):
+                continue
+            
+            p = root / rel_path
+            if p.is_file() and p.suffix.lower() in exts:
+                files.append(p)
+                
+        if files:
+            return files
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    # 2. 如果不是 Git 仓库或命令失败，回退到 os.walk 模式
+    ignore_patterns = load_gitignore_patterns(root)
+    
+    for dirpath, dirnames, filenames in os.walk(root):
+        # 计算相对于 root 的路径
+        rel_dir = os.path.relpath(dirpath, root).replace("\\", "/")
+        if rel_dir == ".":
+            rel_dir = ""
+            
+        # 就地修改 dirnames 以剪枝忽略的目录，os.walk 会自动停止进入这些目录
+        i = len(dirnames) - 1
+        while i >= 0:
+            d = dirnames[i]
+            d_rel = f"{rel_dir}/{d}" if rel_dir else d
+            if d in IGNORE_DIRS or is_ignored(d_rel, ignore_patterns):
+                del dirnames[i]
+            i -= 1
+            
+        for f in filenames:
+            f_rel = f"{rel_dir}/{f}" if rel_dir else f
+            if f in IGNORE_DIRS or is_ignored(f_rel, ignore_patterns):
+                continue
+            p = Path(dirpath) / f
+            if p.suffix.lower() in exts:
+                files.append(p)
+
     return files
 
 

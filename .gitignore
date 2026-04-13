@@ -51,4 +51,5 @@ desktop.ini
 *.local.json
 *.local.md
 local/
+.skill-workspace/
 
