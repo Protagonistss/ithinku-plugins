@@ -6,9 +6,18 @@
       "prompt": "请扫描这个 Vue2 项目，重点检查 src/page 下可能未被引用的页面文件，输出高/中/低风险分组，并给出 deletion-candidates.json 和 patch-plan.md。",
       "expected_output": "识别未引用页面候选，按风险分级，提供证据与建议动作。",
       "assertions": [
-        "必须生成 deletion-candidates.json 且包含 summary.high/summary.medium/summary.low",
-        "每个候选必须包含 path/category/risk_level/evidence/suggested_action",
-        "输出中至少包含一个风险分组章节（HIGH/MEDIUM/LOW）"
+        {
+          "name": "has_summary_risk_levels",
+          "check": "deletion-candidates.json 必须包含 summary.high/summary.medium/summary.low 计数"
+        },
+        {
+          "name": "candidate_has_required_fields",
+          "check": "每个候选必须包含 path/category/risk_level/evidence/suggested_action 字段"
+        },
+        {
+          "name": "report_has_risk_sections",
+          "check": "cleanup-report.md 中至少包含 HIGH/MEDIUM/LOW 风险分组章节"
+        }
       ],
       "files": []
     },
@@ -17,9 +26,18 @@
       "prompt": "请聚焦 src/components，找出未使用组件（未 import、未注册、未模板使用），输出 cleanup-report.md，并附带可执行的清理步骤，不要直接删除文件。",
       "expected_output": "识别未使用组件候选，包含组件路径、证据、风险等级和回滚建议。",
       "assertions": [
-        "cleanup-report.md 中每个候选都要有证据列表",
-        "patch-plan.md 必须包含高风险与中风险处理步骤",
-        "默认建议动作必须是 delete_after_confirm 而不是直接删除"
+        {
+          "name": "report_has_evidence_per_candidate",
+          "check": "cleanup-report.md 中每个候选都要有证据列表"
+        },
+        {
+          "name": "patch_plan_has_high_medium_steps",
+          "check": "patch-plan.md 必须包含高风险与中风险处理步骤"
+        },
+        {
+          "name": "default_action_is_safe",
+          "check": "默认建议动作必须是 delete_after_confirm 而不是直接删除"
+        }
       ],
       "files": []
     },
@@ -28,9 +46,18 @@
       "prompt": "请在整个 src 中识别死代码和历史备份文件（如 *-copy.js, *-bf.js, *-old.js），要求输出 machine-readable 的候选清单，并标注哪些必须人工复核。",
       "expected_output": "识别死代码/历史文件候选，区分高置信与需人工确认项，输出 JSON 清单。",
       "assertions": [
-        "命中 history 命名模式但无弱引用线索时，risk_level 应可为 low",
-        "存在弱引用线索时，risk_level 应降级为 medium",
-        "patch-plan.md 必须包含低风险延后处理建议"
+        {
+          "name": "history_pattern_can_be_low_risk",
+          "check": "命中 history 命名模式但无弱引用线索时，risk_level 可为 low"
+        },
+        {
+          "name": "weak_reference_downgrades_to_medium",
+          "check": "存在弱引用线索时，risk_level 应降级为 medium"
+        },
+        {
+          "name": "patch_plan_has_low_risk_defer",
+          "check": "patch-plan.md 必须包含低风险延后处理建议"
+        }
       ],
       "files": []
     }

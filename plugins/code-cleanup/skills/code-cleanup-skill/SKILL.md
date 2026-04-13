@@ -1,24 +1,50 @@
 ---
 name: code-cleanup-skill
-description: 清理 Vue/webpack 项目中的未引用页面、未使用组件与死代码。只要用户提到“代码清理”“未引用页面”“未使用组件”“死代码”“瘦身项目”“删除无用文件”“清理历史备份文件（copy/bf/old）”，都应优先使用本 Skill。即使用户没有明确说“Skill”，但目标是识别或清理无用代码，也应触发。
+description: 清理项目中的未引用模块、未使用组件与死代码。支持 JS/TS、Python、Go、Java、PHP、Ruby、Rust、C/C++ 等多语言项目。只要用户提到"代码清理""未引用""未使用组件""死代码""瘦身项目""删除无用文件""清理历史备份文件（copy/bf/old）"，都应优先使用本 Skill。即使用户没有明确说"Skill"，但目标是识别或清理无用代码，也应触发。
 ---
 
 # Code Cleanup Skill
 
-用于在 Vue2 + webpack 项目中执行“安全优先”的清理分析，并输出可执行的候选变更，而不是直接删除文件。
+用于在任何项目中执行"安全优先"的清理分析，输出可执行的候选变更而不是直接删除文件。
 
 ## 适用场景
 
-- 用户希望清理 `src/page` 下疑似未引用页面
-- 用户希望清理 `src/components` 下未使用组件
+- 用户希望清理未引用的页面、组件、模块
 - 用户希望识别死代码、历史备份文件、重复实现
-- 用户需要“可落地”的清理报告与补丁方案
+- 用户需要"可落地"的清理报告与补丁方案
+
+## 支持语言
+
+引用检测覆盖以下语言的 import 语法：
+
+| 语言 | 扩展名 | 检测的 import 模式 |
+|------|--------|-------------------|
+| JS/TS | .js .ts .jsx .tsx .vue | import/require/dynamic import |
+| Python | .py | import/from...import |
+| Go | .go | import |
+| Java | .java | import |
+| PHP | .php | require/include/use |
+| Ruby | .rb | require/require_relative/load |
+| Rust | .rs | use/mod |
+| C/C++ | .c .cpp .h .hpp | #include |
 
 ## 默认行为
 
 1. 默认进入 `patch-candidates` 模式：生成候选，不直接删除
-2. 所有候选必须带“证据”与“风险等级”
+2. 所有候选必须带"证据"与"风险等级"
 3. 输出必须包含回滚建议
+
+## 配置驱动
+
+所有扫描行为通过配置文件控制（位于 `config/` 目录）：
+
+| 配置文件 | 用途 |
+|---------|------|
+| `scan-dirs.txt` | 扫描哪些目录、类别名、关键词策略 |
+| `ext-list.txt` | 哪些扩展名参与扫描 |
+| `keep-list.txt` | 白名单，始终保留的文件 |
+
+配置文件不存在时使用内置默认值，用户无需创建即可使用。
 
 ## 输入约定
 
@@ -33,25 +59,23 @@ safety:
   require_confirmation: true
 ```
 
-说明：若不传 `--targets`，脚本会按当前工作空间自动扫描（`--project-root` 对应目录），并自动执行页面/组件/死代码分析。
+说明：若不传 `--targets`，脚本会按当前工作空间自动扫描（`--project-root` 对应目录），并自动执行模块/死代码分析。
 
 ## 工作流
 
 ### Step 1: 收集入口与引用关系
 
-- 扫描路由入口、页面入口、全局注册组件
-- 扫描 import/require/dynamic import 与模板标签
-- 扫描字符串路由跳转（如 `push('/x')`、`window.location`）
+- 扫描路由入口、模块入口、全局注册
+- 扫描各语言的 import/require/include 语法
+- 扫描字符串引用（如路由跳转 `push('/x')`、路径拼接）
 
 ### Step 2: 识别候选清理对象
 
-- **未引用页面候选**
-  - `src/page/**` 下页面入口文件无任何有效引用
-- **未使用组件候选**
-  - `src/components/**` 下组件未被 import、注册或模板使用
-- **死代码候选**
-  - 导出未被使用
-  - 明显历史文件：`*-copy.*`, `*-bf.*`, `*-old.*`
+根据 `config/scan-dirs.txt` 配置扫描各目录：
+- 未引用页面（`src/page/**`、`src/pages/**`）
+- 未使用组件（`src/components/**`）
+- 未使用模块（`src/services/**`、`src/utils/**`、`src/controllers/**` 等）
+- 死代码/历史文件（`*-copy.*`、`*-bf.*`、`*-old.*`）
 
 ### Step 3: 风险分级
 
@@ -59,7 +83,7 @@ safety:
 - `medium`: 命中部分弱引用线索（字符串、动态路径），需人工确认
 - `low`: 仅命中命名模式（如 old/copy/bf），证据较弱
 
-> 迭代优化：若命中“字符串路径/动态模板”弱引用线索，优先降级为 `medium`，避免误删。
+> 若命中"字符串路径/动态引用"弱引用线索，优先降级为 `medium`，避免误删。
 
 ### Step 4: 生成结果
 
@@ -92,8 +116,7 @@ safety:
       "category": "unused_page",
       "risk_level": "high",
       "evidence": [
-        "未在路由与页面入口命中",
-        "全文检索无 import/require 命中"
+        "未在其他源码文件中找到对 `example` 的直接引用"
       ],
       "suggested_action": "delete_after_confirm"
     }
@@ -104,7 +127,7 @@ safety:
 ## 执行边界
 
 - 不直接执行删除操作，除非用户明确要求
-- 不对不确定项给出“高风险可删”
+- 不对不确定项给出"高风险可删"
 - 遇到动态加载、后端下发路径、插件注册场景要降级为 `medium`
 
 ## 推荐实现
@@ -114,6 +137,8 @@ safety:
 - `scripts/analyze_cleanup_candidates.py`
   - 生成候选 JSON
   - 支持 `--keep-list` 白名单（默认读取 `config/keep-list.txt`）
+  - 支持 `--ext-list` 扩展名配置（默认读取 `config/ext-list.txt`）
+  - 支持 `--scan-dirs` 目录配置（默认读取 `config/scan-dirs.txt`）
 - `scripts/render_cleanup_report.py`
   - 生成 `cleanup-report.md` 与 `patch-plan.md`
 
@@ -157,4 +182,4 @@ python .cursor/skills/code-cleanup-skill/scripts/render_cleanup_report.py \
 
 示例：
 
-- “本次识别出 12 个高置信候选、8 个需人工确认候选。建议先处理高置信候选并执行 smoke test，再处理中风险项。”
+- "本次识别出 12 个高置信候选、8 个需人工确认候选。建议先处理高置信候选并执行 smoke test，再处理中风险项。"

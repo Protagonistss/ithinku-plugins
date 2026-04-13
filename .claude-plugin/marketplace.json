@@ -68,20 +68,17 @@
     },
     {
       "name": "code-cleanup",
-      "description": "Vue/webpack 项目代码清理插件，识别未引用页面、未使用组件与历史死代码并生成安全候选方案",
+      "description": "多语言与跨平台项目代码清理插件，智能识别未引用模块、死代码与历史备份并生成安全候选方案",
       "source": "./plugins/code-cleanup",
       "version": "0.0.1",
       "keywords": [
         "code-cleanup",
         "dead-code",
-        "unused-components",
-        "unused-pages",
-        "vue2",
-        "webpack",
+        "unused-modules",
+        "js", "ts", "python", "go", "java", "php", "ruby", "rust", "cpp",
         "代码清理",
         "死代码",
-        "未使用组件",
-        "未引用页面"
+        "模块分析"
       ],
       "category": "development-tools"
     }

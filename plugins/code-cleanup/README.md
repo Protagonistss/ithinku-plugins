@@ -1,14 +1,23 @@
 # Code Cleanup Plugin
 
-面向 Vue2 + webpack 项目的安全清理插件，用于识别未引用页面、未使用组件和历史死代码，并生成“可执行但默认不自动删除”的候选报告。
+面向任意项目的安全清理插件，支持多语言（JS/TS/Python/Go/Java/PHP/Ruby/Rust/C++），用于识别未引用模块、未使用组件和历史死代码，并生成"可执行但默认不自动删除"的候选报告。
 
 ## 核心能力
 
-- 未引用页面识别（`src/page/**`）
-- 未使用组件识别（`src/components/**`）
+- 未引用模块识别（页面、组件、服务、工具类等，通过 `config/scan-dirs.txt` 配置）
 - 历史备份/死代码识别（`*-copy.*`, `*-bf.*`, `*-old.*` 等）
 - 风险分级输出（`high` / `medium` / `low`）
 - 生成清理报告与回滚友好的补丁计划
+
+## 配置文件
+
+| 文件 | 用途 |
+|------|------|
+| `config/scan-dirs.txt` | 扫描目录、类别名、关键词策略 |
+| `config/ext-list.txt` | 参与扫描的文件扩展名 |
+| `config/keep-list.txt` | 白名单，始终保留的文件路径 |
+
+配置文件均不存在时使用内置默认值。
 
 ## 目录结构
 
@@ -19,43 +28,14 @@ plugins/code-cleanup/
    └─ code-cleanup-skill/
       ├─ SKILL.md
       ├─ config/
+      │  ├─ scan-dirs.txt
+      │  ├─ ext-list.txt
       │  └─ keep-list.txt
       ├─ evals/
       │  └─ evals.json
       └─ scripts/
          ├─ analyze_cleanup_candidates.py
          └─ render_cleanup_report.py
-```
-
-## 发布与分发
-
-### 1) Claude 仓库插件发布（推荐）
-
-直接分发本仓库中的 `plugins/code-cleanup` 目录，团队成员在仓库内引用：
-
-```bash
-python plugins/code-cleanup/skills/code-cleanup-skill/scripts/analyze_cleanup_candidates.py \
-  --project-root . \
-  --keep-list plugins/code-cleanup/skills/code-cleanup-skill/config/keep-list.txt \
-  --output .skill-workspace/code-cleanup/latest/deletion-candidates.json
-```
-
-## 附录：Cursor 本地 Skill 兼容用法（可选）
-
-以下仅用于已有 Cursor 本地 Skill 习惯的个人环境，不是 Claude 插件发布必需步骤。
-
-将 `plugins/code-cleanup/skills/code-cleanup-skill` 同步到本地：
-
-- Windows: `%USERPROFILE%\.cursor\skills\code-cleanup-skill`
-- macOS/Linux: `~/.cursor/skills/code-cleanup-skill`
-
-然后在项目根目录执行：
-
-```bash
-python .cursor/skills/code-cleanup-skill/scripts/analyze_cleanup_candidates.py \
-  --project-root . \
-  --keep-list .cursor/skills/code-cleanup-skill/config/keep-list.txt \
-  --output .cursor/skills/code-cleanup-skill-workspace/latest/deletion-candidates.json
 ```
 
 ## 标准执行流程

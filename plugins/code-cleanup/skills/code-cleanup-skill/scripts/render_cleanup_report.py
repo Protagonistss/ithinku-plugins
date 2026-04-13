@@ -100,6 +100,28 @@ def render_patch_plan(data: Dict) -> str:
     lines.append("- 每批执行最小回归（登录、课程列表、页面跳转、关键组件渲染）。")
     lines.append("- 若有异常，按提交粒度回滚最近批次。")
     lines.append("")
+    lines.append("## 回滚命令")
+    lines.append("")
+    lines.append("```bash")
+    lines.append("# 恢复单个文件")
+    lines.append("git checkout -- <file_path>")
+    lines.append("")
+    lines.append("# 回滚最近一次提交（保留工作区修改）")
+    lines.append("git reset --soft HEAD~1")
+    lines.append("")
+    lines.append("# 回滚最近一次提交（完全撤销）")
+    lines.append("git revert HEAD")
+    lines.append("```")
+    lines.append("")
+    if high or medium or low:
+        lines.append("## 按文件恢复示例")
+        lines.append("")
+        all_candidates = high + medium + low
+        for item in all_candidates[:20]:  # 最多展示前 20 个
+            lines.append(f"- `git checkout -- {item['path']}`")
+        if len(all_candidates) > 20:
+            lines.append(f"- ... 以及其他 {len(all_candidates) - 20} 个文件")
+    lines.append("")
     return "\n".join(lines)
 
 
