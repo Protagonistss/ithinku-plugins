@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
+from string import Template
 
 
 def parse_args() -> argparse.Namespace:
@@ -125,6 +126,112 @@ def render_patch_plan(data: Dict) -> str:
     return "\n".join(lines)
 
 
+def render_report_html(data: Dict) -> str:
+    grouped = defaultdict(list)
+    for item in data.get("candidates", []):
+        grouped[item.get("risk_level", "unknown")].append(item)
+
+    summary = data.get("summary", {})
+    gen_at = data.get("generated_at", "")
+    project_root = data.get("project_root", "")
+
+    html_template = """
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Cleanup Report</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; }
+        h1 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .summary-cards { display: flex; gap: 20px; margin-bottom: 30px; }
+        .card { flex: 1; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; color: white; }
+        .card.high { background-color: #e74c3c; }
+        .card.medium { background-color: #f39c12; }
+        .card.low { background-color: #3498db; }
+        .card-val { font-size: 2.5em; font-weight: bold; display: block; }
+        .section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .section-title { font-size: 1.5em; margin-top: 0; display: flex; align-items: center; }
+        .badge { font-size: 0.6em; padding: 4px 8px; border-radius: 4px; margin-left: 10px; text-transform: uppercase; }
+        .badge.high { background: #fee2e2; color: #991b1b; }
+        .badge.medium { background: #fef3c7; color: #92400e; }
+        .badge.low { background: #dbeafe; color: #1e40af; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        th { background-color: #fcfcfc; }
+        code { background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; cursor: pointer; }
+        code:hover { background-color: #e2e2e2; }
+        .evidence { font-size: 0.85em; color: #666; margin: 0; padding-left: 20px; }
+        .meta { color: #666; font-size: 0.9em; margin-bottom: 20px; }
+        .empty { color: #999; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>Code Cleanup Report</h1>
+    <div class="meta">
+        生成时间: $gen_at<br>
+        项目根目录: <code>$project_root</code>
+    </div>
+
+    <div class="summary-cards">
+        <div class="card high"><span class="card-val">$s_high</span>High Risk</div>
+        <div class="card medium"><span class="card-val">$s_medium</span>Medium Risk</div>
+        <div class="card low"><span class="card-val">$s_low</span>Low Risk</div>
+    </div>
+
+    $sections
+
+    <script>
+        function copyPath(path) {
+            navigator.clipboard.writeText(path).then(() => {
+                alert('路径已复制: ' + path);
+            });
+        }
+    </script>
+</body>
+</html>
+    """
+
+    sections_html = []
+    for level in ("high", "medium", "low"):
+        items = grouped.get(level, [])
+        items_html = []
+        if not items:
+            items_html.append("<p class='empty'>未发现此类候选</p>")
+        else:
+            items_html.append("<table>")
+            items_html.append("<tr><th>路径 (点击复制)</th><th>类别</th><th>证据</th></tr>")
+            for item in items:
+                evidence_html = "".join([f"<li>{ev}</li>" for ev in item.get("evidence", [])])
+                path = item['path'].replace("\\", "/")
+                items_html.append(f"""
+                <tr>
+                    <td><code onclick="copyPath('{path}')">{path}</code></td>
+                    <td><span class='badge {level}'>{item['category']}</span></td>
+                    <td><ul class='evidence'>{evidence_html}</ul></td>
+                </tr>
+                """)
+            items_html.append("</table>")
+
+        sections_html.append(f"""
+        <div class="section">
+            <h2 class="section-title">{level.upper()} Risk</h2>
+            {"".join(items_html)}
+        </div>
+        """)
+
+    t = Template(html_template)
+    return t.safe_substitute(
+        gen_at=gen_at,
+        project_root=project_root,
+        s_high=summary.get("high", 0),
+        s_medium=summary.get("medium", 0),
+        s_low=summary.get("low", 0),
+        sections="".join(sections_html)
+    )
+
+
 def main() -> None:
     args = parse_args()
     input_path = Path(args.input).resolve()
@@ -134,10 +241,12 @@ def main() -> None:
     data = load_candidates(input_path)
     report = render_report(data)
     patch_plan = render_patch_plan(data)
+    html_report = render_report_html(data)
 
     (output_dir / "cleanup-report.md").write_text(report, encoding="utf-8")
     (output_dir / "patch-plan.md").write_text(patch_plan, encoding="utf-8")
-    print(f"Generated cleanup-report.md and patch-plan.md in {output_dir}")
+    (output_dir / "cleanup-report.html").write_text(html_report, encoding="utf-8")
+    print(f"Generated cleanup-report.md, patch-plan.md and cleanup-report.html in {output_dir}")
 
 
 if __name__ == "__main__":
