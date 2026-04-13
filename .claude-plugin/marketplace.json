@@ -65,6 +65,25 @@
       "source": "./plugins/ui-design",
       "category": "development",
       "homepage": "https://github.com/Protagonistss/claude-plugins/tree/main/plugins/ui-design"
+    },
+    {
+      "name": "code-cleanup",
+      "description": "Vue/webpack 项目代码清理插件，识别未引用页面、未使用组件与历史死代码并生成安全候选方案",
+      "source": "./plugins/code-cleanup",
+      "version": "0.0.1",
+      "keywords": [
+        "code-cleanup",
+        "dead-code",
+        "unused-components",
+        "unused-pages",
+        "vue2",
+        "webpack",
+        "代码清理",
+        "死代码",
+        "未使用组件",
+        "未引用页面"
+      ],
+      "category": "development-tools"
     }
   ]
 }
