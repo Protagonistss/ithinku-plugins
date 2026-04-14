@@ -1,238 +1,52 @@
-# Claude Code 插件开发指南
+<h1 align="center">🛠️ Claude Code 插件全集</h1>
 
-这个目录包含所有自定义的 Claude Code 插件。每个插件都遵循标准的目录结构和配置格式。
+<p align="center">
+  <strong>一套高度模块化、工程化的 Claude Code 增强套件，助力开发者实现极致生产力</strong>
+</p>
 
-## 现有插件
+<p align="center">
+  <img src="https://img.shields.io/badge/Total_Plugins-8-blueviolet.svg" alt="Total Plugins">
+  <img src="https://img.shields.io/badge/Language-Multi-green.svg" alt="Languages">
+  <img src="https://img.shields.io/badge/Frameworks-React_|_Vue-orange.svg" alt="Frameworks">
+</p>
 
-### 1. Code Review Plugin（代码审查插件）
+---
 
-专业的代码审查和安全分析工具。
+## 📂 插件矩阵
 
-**功能**：
-- 🔍 全面代码审查（/review）
-- 🔒 安全专项检查（/security）
-- ⚡ 性能分析（/performance）
-- 🤖 代码审查专家（CodeReviewer）
-- 🛡️ 安全审查专家（SecurityExpert）
-- 📊 代码分析技能
-- 🔐 安全审查技能
-- 🚀 性能审查技能
+本仓库包含以下精心打造的插件模块，旨在覆盖软件开发的完整生命周期：
 
-**使用场景**：代码质量把控、安全检查、性能优化
+### 🔍 质量与安全 (Quality & Security)
+*   **[Code Review](./code-review/README.md)**：全方位代码审查专家，涵盖安全 (OWASP Top 10)、性能瓶颈及架构合理性。
+*   **[Code Cleanup](./code-cleanup/README.md)**：项目“瘦身”专家，智能识别并清理未引用资源、死代码及残留空目录。
+*   **[Code Polisher](./code-polisher/README.md)**：代码润色工具，在不改变功能的前提下提升代码的清晰度与规范性。
 
-[查看详情](code-review/README.md)
+### 🏗️ 框架与工程 (Development & Engineering)
+*   **[React Coder](./react-coder/README.md)**：React 架构专家，支持高性能组件生成、Hooks 深度提取及最佳实践审计。
+*   **[Vue Coder](./vue-coder/README.md)**：Vue 全版本助手，精通 Vue 3 Composition API 与 Vue 2 遗留代码重构。
+*   **[UI Design](./ui-design/README.md)**：视觉设计插件，打破 AI 平庸审美，生成具有大胆风格 (Neo-Brutalism/Glassmorphism) 的界面。
 
-### 2. Git Tools Plugin（Git 工具插件）
+### ⚙️ 工具与自动化 (Tools & Automation)
+*   **[Git Tools](./git-tools/README.md)**：智能 Git 助手，提供语义化提交、规范化分支管理及复杂工作流自动化。
+*   **[Test Generator](./test-generator/README.md)**：测试自动化专家，一键生成高覆盖率的单元测试、Mock 数据及边界用例。
 
-智能 Git 工具集，提供自动化提交、分支管理和 Git 工作流优化。
+---
 
-**功能**：
-- 📦 智能提交与分支管理
-- 🔧 Git 工作流优化
-- 🤖 Git 专家（GitExpert）
+## 📖 插件标准结构
 
-**使用场景**：Git 操作自动化、提交规范化、分支管理
+每一个插件都遵循严格的目录规范，确保高度的可插拔性：
 
-[查看详情](git-tools/README.md)
-
-### 3. React Coder Plugin（React 代码生成插件）
-
-专业的 React 代码生成工具。
-
-**功能**：
-- ⚛️ 组件生成与优化
-- 📝 最佳实践建议
-- 🚀 代码生成能力
-
-**使用场景**：React 组件开发、代码重构、最佳实践应用
-
-[查看详情](react-coder/README.md)
-
-### 4. Test Generator Plugin（测试生成插件）
-
-专业的单元测试生成工具。
-
-**功能**：
-- 🧪 单元测试生成（/test）
-- 📊 覆盖率分析（/coverage）
-- 🤖 测试专家（TestExpert）
-
-**使用场景**：单元测试编写、Mock 数据生成、测试覆盖率提升
-
-[查看详情](test-generator/README.md)
-
-### 5. UI Design Plugin（UI 设计插件）
-
-专注于生成高质量的前端界面。
-
-**功能**：
-- 🎨 独特审美与 Bold Direction
-- 🖼️ 生产级界面生成
-- ♿ 无障碍设计支持
-
-**使用场景**：UI 界面设计、无障碍优化、视觉风格统一
-
-[查看详情](ui-design/README.md)
-
-### 6. Code Polisher Plugin（代码润色插件）
-
-专业的代码优化工具，在保持功能不变的前提下，提供代码简化、优化和规范化处理。
-
-**功能**：
-- ✨ 代码简化与优化
-- 📏 规范化处理
-- 🤖 代码润色专家（CodePolisher）
-
-**使用场景**：代码重构、代码清理、规范统一
-
-[查看详情](code-polisher/README.md)
-
-### 7. Vue Coder Plugin（Vue 代码生成插件）
-
-专为 Vue.js 开发者设计的代码生成和最佳实践指导工具。
-
-**功能**：
-- 🟢 支持 Vue 2 & Vue 3
-- 🏗️ Composition API 与 Options API 最佳实践
-- 🍍 Pinia 与 Vuex 状态管理
-
-**使用场景**：Vue 组件开发、代码重构、Vue 2 到 Vue 3 迁移
-
-[查看详情](vue-coder/README.md)
-
-### 8. Code Cleanup Plugin（代码清理插件）
-
-面向任意项目的多语言通用安全清理插件，用于识别未引用模块、未使用组件和历史死代码，并生成可视化交互报告与回滚友好的补丁计划。
-
-**功能**：
-- 🧹 识别未引用模块（支持 JS/TS/Py/Go/Java 等）
-- 🧩 识别未使用组件（Vue/React/HTML）
-- 🗂️ 识别历史备份/死代码文件（copy/bf/old）
-- 📊 生成交互式 HTML 可视化报告
-- ⚠️ 风险分级与 AI 自动化清理闭环
-
-**使用场景**：项目瘦身、历史包袱清理、回归前风险可控清理
-
-[查看详情](code-cleanup/README.md)
-
-## 插件结构
-
-每个 Claude Code 插件都遵循以下标准结构：
-
-```
+```text
 plugin-name/
-├── .claude-plugin/
-│   └── plugin.json          # 插件元数据（必需）
-├── commands/                 # 自定义斜杠命令（可选）
-│   └── command-name.md
-├── agents/                   # 自定义代理（可选）
-│   └── agent-name.md
-├── skills/                   # 代理技能（可选）
-│   └── skill-name/
-│       └── SKILL.md
-├── hooks/                    # 事件处理程序（可选）
-│   └── hooks.json
-└── README.md                 # 插件使用说明
+├── agents/             # 🤖 智能代理定义 (Agent Prompts)
+├── commands/           # ⌨️ 斜杠命令扩展 (/commands)
+├── skills/             # 🎨 专业技能逻辑 (Skills & Business Logic)
+├── .claude-plugin/     # 🧩 插件元数据 (plugin.json)
+└── README.md           # 📄 详细说明文档
 ```
 
-## 插件开发
+## 🛠️ 开发者指南
 
-### 快速开始
-
-1. **创建插件目录**
-```bash
-cd plugins
-mkdir my-new-plugin
-cd my-new-plugin
-```
-
-2. **创建基础结构**
-```bash
-mkdir -p .claude-plugin commands agents skills hooks
-```
-
-3. **编写插件元数据**
-创建 `.claude-plugin/plugin.json`：
-```json
-{
-  "name": "my-new-plugin",
-  "version": "1.0.0",
-  "description": "我的新插件",
-  "author": "Your Name"
-}
-```
-
-4. **添加功能**
-根据需要创建：
-- 命令文件（Markdown）
-- 代理定义（Markdown）
-- 技能文件（SKILL.md）
-- 事件钩子（JSON）
-
-### 插件规范
-
-#### 命令（Commands）
-- 文件名即为命令名
-- 使用 Markdown 格式
-- 包含用法说明和示例
-
-#### 代理（Agents）
-- 定义代理的角色和能力
-- 描述专业领域和工作方式
-- 提供使用示例
-
-#### 技能（Skills）
-- 每个技能一个目录
-- 包含 SKILL.md 文件
-- 描述技能的具体能力
-
-#### 钩子（Hooks）
-- JSON 格式配置文件
-- 定义事件处理程序
-- 支持 onLoad、onCommand 等事件
-
-## 安装使用
-
-### 安装插件
-
-```bash
-# 复制插件到 Claude Code 插件目录
-cp -r plugins/my-plugin ~/.config/claude/plugins/my-plugin
-```
-
-### 使用插件
-
-在 Claude Code 中：
-- 使用斜杠命令：`/command-name`
-- 调用代理：`@agent-name`
-- 技能会自动被代理使用
-
-## 最佳实践
-
-1. **命名规范**
-   - 插件名：小写字母和连字符
-   - 命令名：简短明了
-   - 代理名：首字母大写
-
-2. **文档完整**
-   - 每个插件都有 README
-   - 命令和代理包含示例
-   - 技能说明清晰
-
-3. **功能聚焦**
-   - 每个插件专注特定领域
-   - 避免功能重复
-   - 保持插件独立性
-
-## 开发路线图
-
-### 已完成
-
-- ✅ Code Review Plugin - 专业的代码审查和安全分析
-- ✅ Dev Tools Plugin - 代码生成和架构设计工具
-
-### 计划中
-
-- 🔄 更多专业领域插件
-- 🔄 插件间协作机制
-- 🔄 更丰富的工具集成
+1. **创建新插件**：建议参考 `plugins/code-review` 的目录结构。
+2. **本地调试**：使用符号链接 `ln -s` 将插件映射到 `~/.config/claude/plugins/`。
+3. **元数据配置**：确保 `plugin.json` 中的 `description` 与 `README.md` 保持一致。

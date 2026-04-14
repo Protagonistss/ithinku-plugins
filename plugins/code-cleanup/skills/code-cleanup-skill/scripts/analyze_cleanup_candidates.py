@@ -113,6 +113,7 @@ class Candidate:
     category: str
     risk_level: str
     evidence: List[str]
+    file_size_bytes: int = 0
     suggested_action: str = "delete_after_confirm"
 
 
@@ -169,10 +170,18 @@ def is_ignored(path_str: str, patterns: List[str]) -> bool:
     return False
 
 
-def collect_code_files(root: Path, exts: Set[str]) -> List[Path]:
-    """获取项目中的代码文件列表，优先使用 Git 以支持 .gitignore。"""
+def collect_code_files(root: Path, exts: Set[str]) -> Tuple[List[Path], Dict[str, int]]:
+    """获取项目中的代码文件列表，同时统计全局扫描指标。"""
     files: List[Path] = []
+    stats = {"total_files_scanned": 0, "total_size_bytes": 0}
     
+    def add_file(p: Path):
+        if p.is_file():
+            stats["total_files_scanned"] += 1
+            stats["total_size_bytes"] += p.stat().st_size
+            if p.suffix.lower() in exts:
+                files.append(p)
+
     # 1. 优先尝试使用 Git 命令获取文件列表 (自动支持 .gitignore)
     try:
         # 已跟踪文件
@@ -193,11 +202,10 @@ def collect_code_files(root: Path, exts: Set[str]) -> List[Path]:
                 continue
             
             p = root / rel_path
-            if p.is_file() and p.suffix.lower() in exts:
-                files.append(p)
+            add_file(p)
                 
         if files:
-            return files
+            return files, stats
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
@@ -224,10 +232,9 @@ def collect_code_files(root: Path, exts: Set[str]) -> List[Path]:
             if f in IGNORE_DIRS or is_ignored(f_rel, ignore_patterns):
                 continue
             p = Path(dirpath) / f
-            if p.suffix.lower() in exts:
-                files.append(p)
+            add_file(p)
 
-    return files
+    return files, stats
 
 
 def build_reference_pool(files: Sequence[Path], root: Path) -> Dict[str, str]:
@@ -462,6 +469,7 @@ def analyze_modules(root: Path, reference_pool: Dict[str, str], keep_list: Set[s
                     category=sd.category,
                     risk_level=risk,
                     evidence=evidence,
+                    file_size_bytes=file.stat().st_size,
                 )
             )
     return candidates
@@ -488,18 +496,32 @@ def analyze_history_files(root: Path, reference_pool: Dict[str, str], keep_list:
                 category="dead_code_history_file",
                 risk_level=risk,
                 evidence=evidence,
+                file_size_bytes=full.stat().st_size,
             )
         )
     return candidates
 
 
-def summarize(candidates: Sequence[Candidate]) -> Dict[str, int]:
+def summarize(candidates: Sequence[Candidate], project_stats: Dict[str, int]) -> Dict:
     summary = {"high": 0, "medium": 0, "low": 0}
+    unused_size = 0
     for item in candidates:
         if item.risk_level not in summary:
             summary[item.risk_level] = 0
         summary[item.risk_level] += 1
-    return summary
+        unused_size += item.file_size_bytes
+    
+    stats = {
+        **project_stats,
+        "unused_files_count": len(candidates),
+        "unused_size_bytes": unused_size
+    }
+    # 计算健康度 (基于文件大小计算)
+    total_size = project_stats.get("total_size_bytes", 1)
+    if total_size == 0: total_size = 1
+    stats["health_score"] = max(0, min(100, int((1 - unused_size / total_size) * 100)))
+    
+    return {"risk_summary": summary, "project_stats": stats}
 
 
 def parse_args() -> argparse.Namespace:
@@ -525,7 +547,7 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
 
     exts = load_ext_list(root, args.ext_list)
-    files = collect_code_files(root, exts)
+    files, project_stats = collect_code_files(root, exts)
     reference_pool = build_reference_pool(files, root)
     keep_list = load_keep_list(root, args.keep_list)
     scan_dirs = load_scan_dirs(root, args.scan_dirs)
@@ -545,10 +567,12 @@ def main() -> None:
         seen.add(key)
         deduped.append(item)
 
+    final_summary = summarize(deduped, project_stats)
     result = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "project_root": str(root).replace("\\", "/"),
-        "summary": summarize(deduped),
+        "summary": final_summary["risk_summary"],
+        "project_stats": final_summary["project_stats"],
         "candidates": [asdict(item) for item in sorted(deduped, key=lambda c: (c.risk_level, c.category, c.path))],
     }
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -67,38 +67,37 @@ safety:
 ```
 
 说明：若不传 `--targets`，脚本会按当前工作空间自动扫描（`--project-root` 对应目录），并自动执行模块/死代码分析。
-
 ## 工作流 (Three-Phase Loop)
 
-必须遵循以下严格的三阶段闭环，确保清理过程可视化、可评审、可回滚。
+必须遵循以下严格的三阶段闭环，确保清理过程可视化、安全授权、彻底清理且成果可度量。
 
 ### Phase 1: 扫描 (Scan)
-1. **自动识别入口**：扫描路由、模块入口及各语言 import 语法。
-2. **生成候选**：调用 `analyze_cleanup_candidates.py`。
-   - 默认扫描当前工作空间。
-   - 产出 `deletion-candidates.json`。
-3. **简要汇报**：Agent 需提取 JSON 中的 `summary` 向用户简要汇报高/中/低风险的数量。
+1. **执行初始扫描**：调用 `analyze_cleanup_candidates.py` 扫描当前工作空间。
+   - 产出 `before.json`。
+   - Agent 需提取 JSON 中的 `project_stats` 展示项目“健康分”与规模。
+2. **生成可视化报告**：调用 `render_cleanup_report.py` 生成工业风报告。
+   - 产出 `cleanup-report.html`。
+   - **必须**提供报告的本地绝对路径，提示用户：“已生成初始报告，请在浏览器中打开进行可视化评审。”
 
-### Phase 2: 评审 (Review)
-1. **生成可视化报告**：调用 `render_cleanup_report.py`。
-   - 产出 `cleanup-report.html` (交互式 HTML)、`cleanup-report.md` 和 `patch-plan.md`。
-2. **引导用户查看**：
-   - **必须**提供 `cleanup-report.html` 的本地绝对路径。
-   - **必须**提示用户：“已生成交互式报告，请在浏览器中打开以进行可视化确认。你可以点击路径旁边的图标快速复制代码路径。”
-3. **人工确认**：等待用户阅读报告并给出清理指令（例如：“清理所有高风险项”或“删除特定列表”）。
+### Phase 2: 评审与授权 (Review & Authorize)
+1. **阻塞等待**：Agent **严禁**自主执行删除。必须明确等待用户查看报告后给出指令（如：“清理所有高风险”、“删除特定列表”）。
+2. **确认变更范围**：在执行前，Agent 需向用户二次确认将要删除的文件总数。
 
-### Phase 3: 执行 (Execute)
-1. **自动化清理**：
-   - 根据用户指令，读取 `deletion-candidates.json` 获取对应的文件路径。
-   - 使用 `rm` 或 `git rm` 执行物理删除。
-   - **禁止** Agent 凭直觉猜测路径，必须以 JSON 记录为准。
-2. **后续验证**：
-   - 删除后提示用户运行项目测试或进行人工回归。
-   - 提供回滚建议（如 `git reset --hard` 或 `git checkout -- <file>`）。
+### Phase 3: 执行、清扫与对比 (Execute, Purge & Diff)
+1. **自动化清理**：根据授权指令，读取 JSON 执行物理删除。
+2. **彻底清扫 (Purge)**：文件删除后，**必须**清理项目中因此产生的空目录。
+   - 执行 `find . -type d -empty -not -path "./.git/*" -delete` (或对应平台的等价命令)。
+3. **二次扫描验证**：删除完成后，**自动**再次运行扫描脚本。
+   - 产出 `after.json`。
+4. **生成战果报告 (Comparison)**：调用渲染脚本，使用 `--previous before.json` 参数。
+   - 生成带 **“🏆 CLEANUP ACHIEVED / 清理战果”** 横幅的最终 HTML 报告。
+5. **成果总结**：向用户汇报健康分提升了多少点，节省了多少空间。
 
-## 生成结果规范 (Outputs)
+## 执行边界
 
-必须输出以下四个文件到工作区（默认路径 `.skill-workspace/code-cleanup/latest/`）：
+- **授权至上**：严禁在未获得用户明确授权的情况下执行物理删除。
+- **彻底清理**：删除文件后必须顺手清理残留的空目录。
+- **不凭直觉**：Agent 必须严格按照 Phase 1 产出的 JSON 路径执行，禁止猜测路径。
 
 1. `cleanup-report.html` (核心)
    - 包含高置信度风险统计卡片。
@@ -124,6 +123,13 @@ safety:
     "medium": 0,
     "low": 0
   },
+  "project_stats": {
+    "total_files_scanned": 1500,
+    "total_size_bytes": 1024000,
+    "unused_files_count": 12,
+    "unused_size_bytes": 51200,
+    "health_score": 95
+  },
   "candidates": [
     {
       "path": "src/page/example/example.js",
@@ -132,6 +138,7 @@ safety:
       "evidence": [
         "未在其他源码文件中找到对 `example` 的直接引用"
       ],
+      "file_size_bytes": 4096,
       "suggested_action": "delete_after_confirm"
     }
   ]
