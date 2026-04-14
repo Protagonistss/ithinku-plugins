@@ -24,7 +24,7 @@
 
 ## 📦 产物说明
 
-执行完成后，在 `.skill-workspace/code-cleanup/latest/` 生成以下产物：
+执行完成后，在**当前执行命令的目录 (CWD)** 下的 `.skill-workspace/code-cleanup/latest/` 生成以下产物：
 
 | 文件 | 用途 |
 |------|------|
