@@ -441,6 +441,7 @@ def _default_scan_dirs() -> List[ScanDir]:
         ScanDir("src/page", "unused_page", ["stem", "parent"]),
         ScanDir("src/pages", "unused_page", ["stem", "parent"]),
         ScanDir("src/components", "unused_component", ["stem", "tag"]),
+        ScanDir("src/assets", "unused_asset", ["name", "stem"]),
         ScanDir("src/views", "unused_view", ["stem", "parent"]),
         ScanDir("src/controllers", "unused_handler", ["stem"]),
         ScanDir("src/services", "unused_service", ["stem"]),
@@ -464,10 +465,6 @@ def analyze_modules(root: Path, reference_pool: Dict[str, str], keep_list: Set[s
         for file in module_root.rglob("*"):
             if not file.is_file():
                 continue
-            ext = file.suffix.lower()
-            # 排除非代码文件（图片、字体等）
-            if ext in {".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".eot", ".map"}:
-                continue
 
             rel = normalize_rel(file, root)
             if rel in keep_list:
@@ -484,6 +481,8 @@ def analyze_modules(root: Path, reference_pool: Dict[str, str], keep_list: Set[s
                     keywords.append(f"/{parent}/")
                 elif hint == "tag":
                     keywords.append(extract_component_tag_name(file))
+                elif hint == "name":
+                    keywords.append(file.name)
 
             hits = non_self_reference_hits(rel, reference_pool, keywords)
             weak_signals: List[str] = []
