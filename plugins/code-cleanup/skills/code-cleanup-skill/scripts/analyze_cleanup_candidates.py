@@ -35,28 +35,25 @@ IGNORE_DIRS = {
     "venv",
     "target",
 }
-HISTORY_PATTERNS = [
-    re.compile(r".*[-_.](copy|bf|old)(\.[^.]+)?$", re.IGNORECASE),
-    re.compile(r".*(copy|backup|bak)\.[^.]+$", re.IGNORECASE),
-]
 
-# 按语言分组的 import 语法模式，用于精确引用检测
-# 键为扩展名集合，值为正则列表；匹配到正则后的 200 字符内出现 stem 视为引用
-IMPORT_PATTERNS: List[Tuple[Set[str], List[re.Pattern]]] = [
-    # JS / TS / Vue / JSX / TSX
+# 常见编程语言的 import/require 语法模式
+IMPORT_PATTERNS = [
+    # JS / TS / Vue
     (
-        {".js", ".ts", ".vue", ".jsx", ".tsx"},
+        {".js", ".ts", ".jsx", ".tsx", ".vue"},
         [
-            re.compile(r"(?:import\s+.*?from\s*|import\s*|require\s*\(\s*|import\s*\(\s*)['\"`]", re.IGNORECASE),
+            re.compile(r"import\s+.*?\s+from\s+['\"]", re.IGNORECASE),
+            re.compile(r"import\s+['\"]", re.IGNORECASE),
+            re.compile(r"require\s*\(\s*['\"]", re.IGNORECASE),
+            re.compile(r"import\s*\(\s*['\"]", re.IGNORECASE),
         ],
     ),
     # Python
     (
         {".py"},
         [
-            re.compile(r"(?:from\s+[\w.]+\s+import\s+|import\s+)['\"`]?", re.IGNORECASE),
-            re.compile(r"from\s+([\w.]+)\s+import", re.IGNORECASE),
-            re.compile(r"import\s+([\w.]+)", re.IGNORECASE),
+            re.compile(r"import\s+", re.IGNORECASE),
+            re.compile(r"from\s+.*?\s+import\s+", re.IGNORECASE),
         ],
     ),
     # Go
@@ -127,7 +124,7 @@ class Candidate:
 class ScanDir:
     dir_path: str  # 相对路径，如 src/page
     category: str  # 如 unused_page
-    # 额外关键词提取策略: "stem"=文件名, "parent"=父目录名, "tag"=kebab-case 标签名
+    # 额外关键词提取策略: "stem"=文件名, "parent"=父目录名, "tag"=kebab-case 标签名, "name"=完整文件名
     keyword_hints: List[str]
 
 
@@ -176,26 +173,24 @@ def is_ignored(path_str: str, patterns: List[str]) -> bool:
     return False
 
 
-def collect_code_files(root: Path, exts: Set[str]) -> Tuple[List[Path], Dict[str, int]]:
-    """获取项目中的代码文件列表，同时统计全局扫描指标。"""
+def collect_files(root: Path) -> Tuple[List[Path], Dict[str, int]]:
+    """获取项目中的所有非忽略文件列表，同时统计全局扫描指标。"""
     files: List[Path] = []
     stats = {"total_files_scanned": 0, "total_size_bytes": 0}
     
     def add_file(p: Path):
         if p.is_file():
+            rel_path = normalize_rel(p, root)
             stats["total_files_scanned"] += 1
             stats["total_size_bytes"] += p.stat().st_size
-            if p.suffix.lower() in exts:
-                log_progress(f"  Scanning: {normalize_rel(p, root)}")
-                files.append(p)
+            log_progress(f"  Found: {rel_path}")
+            files.append(p)
 
     # 1. 优先尝试使用 Git 命令获取文件列表 (自动支持 .gitignore)
     try:
-        # 已跟踪文件
         cmd1 = ["git", "ls-files"]
         res1 = subprocess.run(cmd1, cwd=root, capture_output=True, text=True, check=True)
         
-        # 未跟踪但未被忽略的文件
         cmd2 = ["git", "ls-files", "--others", "--exclude-standard"]
         res2 = subprocess.run(cmd2, cwd=root, capture_output=True, text=True, check=True)
         
@@ -204,28 +199,21 @@ def collect_code_files(root: Path, exts: Set[str]) -> Tuple[List[Path], Dict[str
         for rel_path in all_git_files:
             if not rel_path:
                 continue
-            # 双重保险：排除硬编码的忽略目录
             if any(rel_path == x or rel_path.startswith(f"{x}/") for x in IGNORE_DIRS):
                 continue
-            
-            p = root / rel_path
-            add_file(p)
+            add_file(root / rel_path)
                 
         if files:
             return files, stats
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
-    # 2. 如果不是 Git 仓库或命令失败，回退到 os.walk 模式
+    # 2. Fallback to os.walk
     ignore_patterns = load_gitignore_patterns(root)
-    
     for dirpath, dirnames, filenames in os.walk(root):
-        # 计算相对于 root 的路径
         rel_dir = os.path.relpath(dirpath, root).replace("\\", "/")
-        if rel_dir == ".":
-            rel_dir = ""
+        if rel_dir == ".": rel_dir = ""
             
-        # 就地修改 dirnames 以剪枝忽略的目录，os.walk 会自动停止进入这些目录
         i = len(dirnames) - 1
         while i >= 0:
             d = dirnames[i]
@@ -238,19 +226,25 @@ def collect_code_files(root: Path, exts: Set[str]) -> Tuple[List[Path], Dict[str
             f_rel = f"{rel_dir}/{f}" if rel_dir else f
             if f in IGNORE_DIRS or is_ignored(f_rel, ignore_patterns):
                 continue
-            p = Path(dirpath) / f
-            add_file(p)
+            add_file(Path(dirpath) / f)
 
     return files, stats
 
 
-def build_reference_pool(files: Sequence[Path], root: Path) -> Dict[str, str]:
-    return {normalize_rel(file, root): read_text(file) for file in files}
+def build_reference_pool(files: Sequence[Path], root: Path, exts: Set[str]) -> Dict[str, str]:
+    """构建引用池：仅读取符合代码扩展名的文件内容。"""
+    pool = {}
+    for file in files:
+        if file.suffix.lower() in exts:
+            rel = normalize_rel(file, root)
+            # log_progress(f"  Reading into pool: {rel}")
+            pool[rel] = read_text(file)
+    return pool
 
 
 def _is_path_keyword(kw: str) -> bool:
-    """路径类关键词（含 / 或 .）本身足够具体，允许子串匹配。"""
-    return "/" in kw or "\\" in kw or kw.startswith(".") or kw.endswith(".")
+    """路径类或文件名类关键词（含 /、\\ 或 .）本身足够具体，允许子串匹配。"""
+    return "/" in kw or "\\" in kw or "." in kw
 
 
 def has_import_reference(text: str, stem: str, ext: str) -> bool:
@@ -283,8 +277,10 @@ def non_self_reference_hits(target_rel: str, pool: Dict[str, str], keywords: Seq
                 continue
             if _is_path_keyword(kw):
                 if kw in text:
+                    log_progress(f"    HIT: Found '{kw}' in {rel}")
                     hits.append(rel)
                     break
+                log_progress(f"    MISS: '{kw}' not in {rel} (Text length: {len(text)})")
             else:
                 if has_import_reference(text, kw, ext):
                     hits.append(rel)
@@ -313,7 +309,8 @@ def extract_component_tag_name(file_path: Path) -> str:
 
 def infer_history_file(path: Path) -> bool:
     name = path.name
-    return any(p.match(name) for p in HISTORY_PATTERNS)
+    patterns = [r"-copy", r"-bf", r"-old", r"_bak", r"\.bak", r"备份"]
+    return any(re.search(p, name, re.IGNORECASE) for p in patterns)
 
 
 def pick_risk(weak_signals: List[str], history_pattern_hit: bool = False) -> str:
@@ -450,28 +447,33 @@ def _default_scan_dirs() -> List[ScanDir]:
     ]
 
 
-def analyze_modules(root: Path, reference_pool: Dict[str, str], keep_list: Set[str], scan_dirs: List[ScanDir], targets: Set[str]) -> List[Candidate]:
-    """通用模块扫描：根据 scan_dirs 配置扫描各目录中未被引用的文件。"""
+def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str, str], keep_list: Set[str], scan_dirs: List[ScanDir], targets: Set[str]) -> List[Candidate]:
+    """通用模块扫描：基于预收集的文件列表，根据 scan_dirs 配置识别未引用的文件。"""
     candidates: List[Candidate] = []
     scan_all = len(targets) == 0 or "." in targets or "src" in targets
 
     for sd in scan_dirs:
         if not scan_all and sd.dir_path not in targets:
             continue
-        module_root = root / sd.dir_path
-        if not module_root.exists():
+        
+        # 筛选属于当前扫描目录的文件 (支持深层目录匹配)
+        target_prefix = sd.dir_path.strip("/")
+        module_files = [
+            f for f in all_files 
+            if normalize_rel(f, root) == target_prefix or normalize_rel(f, root).startswith(f"{target_prefix}/")
+        ]
+        
+        if not module_files:
             continue
 
-        for file in module_root.rglob("*"):
-            if not file.is_file():
-                continue
-
+        log_progress(f"  Analyzing {len(module_files)} files in category: {sd.category} (prefix: {target_prefix})")
+        for file in module_files:
             rel = normalize_rel(file, root)
             if rel in keep_list:
                 continue
 
             # 根据关键词策略构建搜索关键词
-            keywords = [rel]
+            keywords = [rel, file.name] # 始终包含相对路径和文件名本身
             stem = file.stem
             parent = file.parent.name
             for hint in sd.keyword_hints:
@@ -481,23 +483,22 @@ def analyze_modules(root: Path, reference_pool: Dict[str, str], keep_list: Set[s
                     keywords.append(f"/{parent}/")
                 elif hint == "tag":
                     keywords.append(extract_component_tag_name(file))
-                elif hint == "name":
-                    keywords.append(file.name)
 
             hits = non_self_reference_hits(rel, reference_pool, keywords)
             weak_signals: List[str] = []
             history_pattern_hit = infer_history_file(file)
 
-            # 弱引用检测：用父目录名或文件名做模糊匹配
+            # 弱引用检测
             weak_token = parent if "parent" in sd.keyword_hints else stem
             weak_hits = find_weak_mentions(rel, reference_pool, weak_token)
             if weak_hits:
                 weak_signals.append("存在弱引用线索（字符串路径/动态引用），建议人工复核")
+            
             if hits:
                 continue
 
             risk = pick_risk(weak_signals, history_pattern_hit=history_pattern_hit)
-            evidence = [f"未在其他源码文件中找到对 `{stem}` 的直接引用"]
+            evidence = [f"未在源码引用池中找到对 `{file.name}` 的引用"]
             if history_pattern_hit:
                 evidence.append("命中历史文件命名模式(copy/bf/old)")
             evidence.extend(weak_signals)
@@ -587,12 +588,13 @@ def main() -> None:
     log_progress(f"Initializing scan for: {root}")
     exts = load_ext_list(root, args.ext_list)
     
-    log_progress("Phase 1: Collecting files (respecting .gitignore and pruning huge dirs)...")
-    files, project_stats = collect_code_files(root, exts)
-    log_progress(f"Found {len(files)} source files to analyze.")
+    log_progress("Phase 1: Collecting all non-ignored files...")
+    all_files, project_stats = collect_files(root)
+    log_progress(f"Detected {len(all_files)} files in workspace.")
 
-    log_progress("Phase 2: Building reference pool (reading file contents)...")
-    reference_pool = build_reference_pool(files, root)
+    log_progress("Phase 2: Building reference pool (reading code contents)...")
+    reference_pool = build_reference_pool(all_files, root, exts)
+    log_progress(f"Reference pool built with {len(reference_pool)} code files.")
     
     keep_list = load_keep_list(root, args.keep_list)
     scan_dirs = load_scan_dirs(root, args.scan_dirs)
@@ -600,7 +602,7 @@ def main() -> None:
 
     candidates: List[Candidate] = []
     log_progress("Phase 3: Analyzing modules for unused references...")
-    candidates.extend(analyze_modules(root, reference_pool, keep_list, scan_dirs, targets))
+    candidates.extend(analyze_modules(root, all_files, reference_pool, keep_list, scan_dirs, targets))
     
     log_progress("Phase 4: Analyzing for history/backup files...")
     candidates.extend(analyze_history_files(root, reference_pool, keep_list))
