@@ -186,7 +186,6 @@ def collect_files(root: Path) -> Tuple[List[Path], Dict[str, int]]:
             rel_path = normalize_rel(p, root)
             stats["total_files_scanned"] += 1
             stats["total_size_bytes"] += p.stat().st_size
-            log_progress(f"  Found: {rel_path}")
             files.append(p)
 
     # 1. 优先尝试使用 Git 命令获取文件列表 (自动支持 .gitignore)
@@ -775,7 +774,6 @@ def non_self_reference_hits(target_rel: str, pool: Dict[str, str], keywords: Seq
                     log_progress(f"    HIT: Found '{kw}' in {rel}")
                     hits.append(rel)
                     break
-                log_progress(f"    MISS: '{kw}' not in {rel} (Text length: {len(text)})")
             else:
                 if has_import_reference(text, kw, ext):
                     hits.append(rel)
