@@ -5,6 +5,9 @@
 ## 核心能力
 
 - **多语言引用识别**：识别各语言 import/require 语法的精确引用（JS/TS/Py/Go/Java 等）。
+- **原生 Git 与 .gitignore 支持**：自动遵守项目的 `.gitignore` 规则，并优先使用 Git 指令（`git ls-files`）获取文件，扫描速度极快。
+- **项目个性化配置 (By-Project Config)**：支持在项目根目录创建 `.code-cleanup/` 文件夹（包含 `keep-list.txt` 等文件）来实现针对性配置，无需修改插件源码。
+- **自动剪枝 (Directory Pruning)**：智能跳过 `node_modules`、`.idea` 等巨大目录，非 Git 环境下也能高效完成。
 - **交互式可视化报告**：生成带风险统计卡片和可折叠表格的 HTML 报告。
 - **AI 自动化清理闭环**：Agent 可根据扫描结果，在用户确认后自动执行文件清理。
 - **历史死代码识别**：自动发现 `*-copy.*`, `*-bf.*`, `*-old.*` 等备份残留。

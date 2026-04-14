@@ -316,6 +316,7 @@ def load_keep_list(root: Path, explicit: str = "") -> Set[str]:
     else:
         script_dir = Path(__file__).resolve().parent
         candidates = [
+            root / ".code-cleanup" / "keep-list.txt",
             root / "plugins" / "code-cleanup" / "skills" / "code-cleanup-skill" / "config" / "keep-list.txt",
             script_dir.parent / "config" / "keep-list.txt",
             root / ".cursor" / "skills" / "code-cleanup-skill" / "config" / "keep-list.txt",
@@ -338,6 +339,7 @@ def load_ext_list(root: Path, explicit: str = "") -> Set[str]:
     else:
         script_dir = Path(__file__).resolve().parent
         candidates = [
+            root / ".code-cleanup" / "ext-list.txt",
             root / "plugins" / "code-cleanup" / "skills" / "code-cleanup-skill" / "config" / "ext-list.txt",
             script_dir.parent / "config" / "ext-list.txt",
             root / ".cursor" / "skills" / "code-cleanup-skill" / "config" / "ext-list.txt",
@@ -365,6 +367,7 @@ def load_scan_dirs(root: Path, explicit: str = "") -> List[ScanDir]:
     else:
         script_dir = Path(__file__).resolve().parent
         candidates = [
+            root / ".code-cleanup" / "scan-dirs.txt",
             root / "plugins" / "code-cleanup" / "skills" / "code-cleanup-skill" / "config" / "scan-dirs.txt",
             script_dir.parent / "config" / "scan-dirs.txt",
             root / ".cursor" / "skills" / "code-cleanup-skill" / "config" / "scan-dirs.txt",
