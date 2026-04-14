@@ -5,7 +5,6 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
-from string import Template
 
 
 def format_size(bytes_num: int) -> str:
@@ -124,9 +123,10 @@ def render_patch_plan(data: Dict) -> str:
     lines.append("")
     lines.append("## Step 4: 清理残留空目录")
     lines.append("")
-    lines.append("- 文件删除后，建议执行以下命令清扫空目录：")
-    lines.append("  - **Linux/macOS**: `find . -type d -empty -not -path './.git/*' -not -path './node_modules/*' -delete`")
-    lines.append("  - **Windows (PS)**: `Get-ChildItem -Path . -Recurse -Directory | Where-Object { \$_.GetFileSystemInfos().Count -eq 0 } | Remove-Item`")
+    lines.append("## Step 4: 清理残留空目录")
+    lines.append("")
+    lines.append("- 文件删除后，执行以下 Python 命令清扫空目录（跨平台）：")
+    lines.append("  `python -c \"import pathlib; [p.rmdir() for p in sorted(pathlib.Path('.').rglob('*'), reverse=True) if p.is_dir() and not any(p.iterdir()) and '.git' not in str(p) and 'node_modules' not in str(p)]\"`")
     lines.append("")
     lines.append("## Step 5: 生成战果对比报告")
     lines.append("")
@@ -208,195 +208,6 @@ def render_report_html(data: Dict, prev_data: Dict = None) -> str:
             </div>
             """
 
-    html_template = """
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cleanup Scan Report</title>
-    <style>
-        :root {
-            --black: #000000;
-            --white: #ffffff;
-            --gray: #f0f0f0;
-            --danger: #ff4d4d;
-            --warning: #ffcc00;
-            --info: #3399ff;
-            --success-bg: #22c55e;
-            --border-width: 3px;
-        }
-        * { box-sizing: border-box; }
-        body { 
-            font-family: 'JetBrains Mono', 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
-            background-color: var(--white);
-            color: var(--black);
-            margin: 0;
-            padding: 40px;
-            line-height: 1.4;
-        }
-
-        header { 
-            border: var(--border-width) solid var(--black);
-            padding: 24px;
-            margin-bottom: 40px;
-            box-shadow: 8px 8px 0 var(--black);
-        }
-        h1 { 
-            font-size: 32px; 
-            font-weight: 900; 
-            margin: 0 0 12px 0; 
-            text-transform: uppercase; 
-            letter-spacing: -1px;
-        }
-        .meta { font-size: 13px; font-weight: 500; }
-        .meta code { background: var(--gray); padding: 2px 6px; border: 1px solid var(--black); }
-
-        .diff-banner {
-            background: var(--success-bg);
-            border: var(--border-width) solid var(--black);
-            padding: 20px;
-            margin-bottom: 40px;
-            box-shadow: 8px 8px 0 var(--black);
-        }
-        .diff-title { font-weight: 900; font-size: 18px; text-transform: uppercase; margin-bottom: 15px; border-bottom: 2px solid var(--black); padding-bottom: 5px; }
-        .diff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .diff-item { display: flex; flex-direction: column; }
-        .diff-label { font-size: 11px; font-weight: 900; text-transform: uppercase; }
-        .diff-value { font-size: 24px; font-weight: 900; }
-
-        .dashboard { 
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-        .stat-card { 
-            border: var(--border-width) solid var(--black);
-            padding: 20px;
-            background: var(--white);
-            box-shadow: 6px 6px 0 var(--black);
-            transition: transform 0.1s;
-        }
-        .stat-card:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--black); }
-        .stat-label { font-size: 11px; font-weight: 900; text-transform: uppercase; color: #666; display: block; margin-bottom: 8px; }
-        .stat-value { font-size: 24px; font-weight: 900; display: block; }
-        .stat-sub { font-size: 12px; font-weight: 600; margin-top: 4px; border-top: 1px solid var(--black); padding-top: 4px; }
-        
-        .risk-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
-        .risk-box { 
-            padding: 16px; 
-            border: var(--border-width) solid var(--black);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 4px 4px 0 var(--black);
-        }
-        .risk-box.high { background: var(--danger); }
-        .risk-box.medium { background: var(--warning); }
-        .risk-box.low { background: var(--info); }
-        .risk-count { font-size: 28px; font-weight: 900; }
-        .risk-label { font-size: 14px; font-weight: 900; text-transform: uppercase; }
-
-        .section { margin-bottom: 60px; }
-        .section-header { 
-            background: var(--black);
-            color: var(--white);
-            padding: 10px 16px;
-            font-size: 18px;
-            font-weight: 900;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .section-header .count { background: var(--white); color: var(--black); padding: 0 8px; font-size: 14px; }
-
-        .table-container { border: var(--border-width) solid var(--black); border-top: none; }
-        table { width: 100%; border-collapse: collapse; background: var(--white); }
-        th { 
-            background: var(--gray);
-            border-bottom: var(--border-width) solid var(--black);
-            text-align: left;
-            padding: 12px;
-            font-size: 12px;
-            font-weight: 900;
-            text-transform: uppercase;
-        }
-        td { padding: 16px 12px; border-bottom: 1px solid var(--black); vertical-align: top; }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: var(--gray); }
-
-        .file-path { font-weight: 700; color: var(--black); cursor: pointer; word-break: break-all; border-bottom: 2px solid transparent; }
-        .file-path:hover { border-bottom-color: var(--black); }
-        .file-size { font-size: 11px; font-weight: 700; margin-top: 4px; display: block; opacity: 0.6; }
-        
-        .category-tag { font-size: 11px; font-weight: 900; text-transform: uppercase; background: var(--black); color: var(--white); padding: 2px 8px; display: inline-block; }
-        .evidence-list { margin: 0; padding: 0; list-style: none; font-size: 12px; font-weight: 500; }
-        .evidence-list li { margin-bottom: 4px; padding-left: 12px; position: relative; }
-        .evidence-list li::before { content: ">"; position: absolute; left: 0; font-weight: 900; }
-
-        .empty-text { padding: 40px; text-align: center; font-weight: 900; text-transform: uppercase; border: var(--border-width) solid var(--black); border-top: none; }
-
-        #copy-toast {
-            position: fixed; bottom: 30px; right: 30px; background: var(--black); color: var(--white); padding: 12px 20px; font-weight: 900;
-            font-size: 13px; display: none; border: var(--border-width) solid var(--white); box-shadow: 8px 8px 0 rgba(0,0,0,0.2); z-index: 1000; text-transform: uppercase;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>Cleanup Analysis</h1>
-        <div class="meta">DATE: <b>$gen_at</b> | ROOT: <code>$project_root</code></div>
-    </header>
-
-    $diff_html
-
-    <div class="dashboard">
-        <div class="stat-card">
-            <span class="stat-label">HEALTH SCORE</span>
-            <span class="stat-value health-score">$health_score%</span>
-            <div class="stat-sub">Overall system integrity</div>
-        </div>
-        <div class="stat-card">
-            <span class="stat-label">TOTAL SCAN</span>
-            <span class="stat-value">$total_files</span>
-            <div class="stat-sub">Size: $total_size</div>
-        </div>
-        <div class="stat-card">
-            <span class="stat-label">CANDIDATES</span>
-            <span class="stat-value">$unused_files</span>
-            <div class="stat-sub">Waste: $unused_size</div>
-        </div>
-        <div class="stat-card">
-            <span class="stat-label">POTENTIAL GAIN</span>
-            <span class="stat-value">-$unused_perc%</span>
-            <div class="stat-sub">Storage reduction</div>
-        </div>
-    </div>
-
-    <div class="risk-summary">
-        <div class="risk-box high"><span class="risk-label">High Risk</span><span class="risk-count">$s_high</span></div>
-        <div class="risk-box medium"><span class="risk-label">Medium Risk</span><span class="risk-count">$s_medium</span></div>
-        <div class="risk-box low"><span class="risk-label">Low Risk</span><span class="risk-count">$s_low</span></div>
-    </div>
-
-    $sections
-
-    <div id="copy-toast">Path Copied</div>
-
-    <script>
-        function copyPath(path) {
-            navigator.clipboard.writeText(path).then(() => {
-                const toast = document.getElementById('copy-toast');
-                toast.style.display = 'block';
-                setTimeout(() => { toast.style.display = 'none'; }, 1500);
-            });
-        }
-    </script>
-</body>
-</html>
-    """
-
     sections_html = []
     for level in ("high", "medium", "low"):
         items = grouped.get(level, [])
@@ -438,22 +249,200 @@ def render_report_html(data: Dict, prev_data: Dict = None) -> str:
     unused_f = stats.get("unused_files_count", 0)
     unused_perc = round((unused_f / total_f) * 100, 1)
 
-    t = Template(html_template)
-    return t.safe_substitute(
-        gen_at=gen_at,
-        project_root=project_root,
-        diff_html=diff_html,
-        health_score=health_score,
-        total_files=stats.get("total_files_scanned", 0),
-        total_size=format_size(stats.get("total_size_bytes", 0)),
-        unused_files=unused_f,
-        unused_size=format_size(stats.get("unused_size_bytes", 0)),
-        unused_perc=unused_perc,
-        s_high=summary.get("high", 0),
-        s_medium=summary.get("medium", 0),
-        s_low=summary.get("low", 0),
-        sections="".join(sections_html)
-    )
+    total_files_val = stats.get("total_files_scanned", 0)
+    total_size_val = format_size(stats.get("total_size_bytes", 0))
+    unused_size_val = format_size(stats.get("unused_size_bytes", 0))
+    s_high = summary.get("high", 0)
+    s_medium = summary.get("medium", 0)
+    s_low = summary.get("low", 0)
+
+    # 用 f-string 直接拼接，避免 safe_substitute 的静默占位符残留问题
+    return f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cleanup Scan Report</title>
+    <style>
+        :root {{
+            --black: #000000;
+            --white: #ffffff;
+            --gray: #f0f0f0;
+            --danger: #ff4d4d;
+            --warning: #ffcc00;
+            --info: #3399ff;
+            --success-bg: #22c55e;
+            --border-width: 3px;
+        }}
+        * {{ box-sizing: border-box; }}
+        body {{
+            font-family: 'JetBrains Mono', 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+            background-color: var(--white);
+            color: var(--black);
+            margin: 0;
+            padding: 40px;
+            line-height: 1.4;
+        }}
+
+        header {{
+            border: var(--border-width) solid var(--black);
+            padding: 24px;
+            margin-bottom: 40px;
+            box-shadow: 8px 8px 0 var(--black);
+        }}
+        h1 {{
+            font-size: 32px;
+            font-weight: 900;
+            margin: 0 0 12px 0;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+        }}
+        .meta {{ font-size: 13px; font-weight: 500; }}
+        .meta code {{ background: var(--gray); padding: 2px 6px; border: 1px solid var(--black); }}
+
+        .diff-banner {{
+            background: var(--success-bg);
+            border: var(--border-width) solid var(--black);
+            padding: 20px;
+            margin-bottom: 40px;
+            box-shadow: 8px 8px 0 var(--black);
+        }}
+        .diff-title {{ font-weight: 900; font-size: 18px; text-transform: uppercase; margin-bottom: 15px; border-bottom: 2px solid var(--black); padding-bottom: 5px; }}
+        .diff-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }}
+        .diff-item {{ display: flex; flex-direction: column; }}
+        .diff-label {{ font-size: 11px; font-weight: 900; text-transform: uppercase; }}
+        .diff-value {{ font-size: 24px; font-weight: 900; }}
+
+        .dashboard {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }}
+        .stat-card {{
+            border: var(--border-width) solid var(--black);
+            padding: 20px;
+            background: var(--white);
+            box-shadow: 6px 6px 0 var(--black);
+            transition: transform 0.1s;
+        }}
+        .stat-card:hover {{ transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--black); }}
+        .stat-label {{ font-size: 11px; font-weight: 900; text-transform: uppercase; color: #666; display: block; margin-bottom: 8px; }}
+        .stat-value {{ font-size: 24px; font-weight: 900; display: block; }}
+        .stat-sub {{ font-size: 12px; font-weight: 600; margin-top: 4px; border-top: 1px solid var(--black); padding-top: 4px; }}
+
+        .risk-summary {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }}
+        .risk-box {{
+            padding: 16px;
+            border: var(--border-width) solid var(--black);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 4px 4px 0 var(--black);
+        }}
+        .risk-box.high {{ background: var(--danger); }}
+        .risk-box.medium {{ background: var(--warning); }}
+        .risk-box.low {{ background: var(--info); }}
+        .risk-count {{ font-size: 28px; font-weight: 900; }}
+        .risk-label {{ font-size: 14px; font-weight: 900; text-transform: uppercase; }}
+
+        .section {{ margin-bottom: 60px; }}
+        .section-header {{
+            background: var(--black);
+            color: var(--white);
+            padding: 10px 16px;
+            font-size: 18px;
+            font-weight: 900;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .section-header .count {{ background: var(--white); color: var(--black); padding: 0 8px; font-size: 14px; }}
+
+        .table-container {{ border: var(--border-width) solid var(--black); border-top: none; }}
+        table {{ width: 100%; border-collapse: collapse; background: var(--white); }}
+        th {{
+            background: var(--gray);
+            border-bottom: var(--border-width) solid var(--black);
+            text-align: left;
+            padding: 12px;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }}
+        td {{ padding: 16px 12px; border-bottom: 1px solid var(--black); vertical-align: top; }}
+        tr:last-child td {{ border-bottom: none; }}
+        tr:hover td {{ background: var(--gray); }}
+
+        .file-path {{ font-weight: 700; color: var(--black); cursor: pointer; word-break: break-all; border-bottom: 2px solid transparent; }}
+        .file-path:hover {{ border-bottom-color: var(--black); }}
+        .file-size {{ font-size: 11px; font-weight: 700; margin-top: 4px; display: block; opacity: 0.6; }}
+
+        .category-tag {{ font-size: 11px; font-weight: 900; text-transform: uppercase; background: var(--black); color: var(--white); padding: 2px 8px; display: inline-block; }}
+        .evidence-list {{ margin: 0; padding: 0; list-style: none; font-size: 12px; font-weight: 500; }}
+        .evidence-list li {{ margin-bottom: 4px; padding-left: 12px; position: relative; }}
+        .evidence-list li::before {{ content: ">"; position: absolute; left: 0; font-weight: 900; }}
+
+        .empty-text {{ padding: 40px; text-align: center; font-weight: 900; text-transform: uppercase; border: var(--border-width) solid var(--black); border-top: none; }}
+
+        #copy-toast {{
+            position: fixed; bottom: 30px; right: 30px; background: var(--black); color: var(--white); padding: 12px 20px; font-weight: 900;
+            font-size: 13px; display: none; border: var(--border-width) solid var(--white); box-shadow: 8px 8px 0 rgba(0,0,0,0.2); z-index: 1000; text-transform: uppercase;
+        }}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Cleanup Analysis</h1>
+        <div class="meta">DATE: <b>{gen_at}</b> | ROOT: <code>{project_root}</code></div>
+    </header>
+
+    {diff_html}
+
+    <div class="dashboard">
+        <div class="stat-card">
+            <span class="stat-label">HEALTH SCORE</span>
+            <span class="stat-value health-score">{health_score}%</span>
+            <div class="stat-sub">Overall system integrity</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">TOTAL SCAN</span>
+            <span class="stat-value">{total_files_val}</span>
+            <div class="stat-sub">Size: {total_size_val}</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">CANDIDATES</span>
+            <span class="stat-value">{unused_f}</span>
+            <div class="stat-sub">Waste: {unused_size_val}</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">POTENTIAL GAIN</span>
+            <span class="stat-value">-{unused_perc}%</span>
+            <div class="stat-sub">Storage reduction</div>
+        </div>
+    </div>
+
+    <div class="risk-summary">
+        <div class="risk-box high"><span class="risk-label">High Risk</span><span class="risk-count">{s_high}</span></div>
+        <div class="risk-box medium"><span class="risk-label">Medium Risk</span><span class="risk-count">{s_medium}</span></div>
+        <div class="risk-box low"><span class="risk-label">Low Risk</span><span class="risk-count">{s_low}</span></div>
+    </div>
+
+    {"".join(sections_html)}
+
+    <div id="copy-toast">Path Copied</div>
+
+    <script>
+        function copyPath(path) {{
+            navigator.clipboard.writeText(path).then(() => {{
+                const toast = document.getElementById('copy-toast');
+                toast.style.display = 'block';
+                setTimeout(() => {{ toast.style.display = 'none'; }}, 1500);
+            }});
+        }}
+    </script>
+</body>
+</html>"""
 
 
 def main() -> None:
