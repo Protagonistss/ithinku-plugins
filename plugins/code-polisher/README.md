@@ -1,35 +1,43 @@
-# Code Polisher Plugin
+<h1 align="center">✨ Code Polisher Plugin</h1>
 
-专业的代码优化工具，在保持功能不变的前提下，提供代码简化、优化和规范化处理。
+<p align="center">
+  <strong>专业的代码优化工具，在保持功能不变的前提下，提供代码简化、优化和规范化处理</strong>
+</p>
 
-## 功能特性
+<p align="center">
+  <img src="https://img.shields.io/badge/Plugin-Claude_Code-blueviolet.svg" alt="Claude Code Plugin">
+  <img src="https://img.shields.io/badge/Status-Active-success.svg" alt="Status">
+</p>
 
-- **保持功能不变 (Preserve Functionality)**: 绝不改变代码"做什么"，只优化"怎么写"。
-- **遵循项目规范 (Apply Project Standards)**: 严格遵循项目定义的编码规范 (如 CLAUDE.md)。
-- **提升清晰度 (Enhance Clarity)**: 减少复杂度，消除冗余，提升可读性。
-- **保持平衡 (Maintain Balance)**: 避免过度简化，始终优先选择可读性。
-- **限定作用范围 (Focus Scope)**: 默认仅关注最近修改的代码。
+---
 
-## Agents
+## 🚀 核心特性
 
-### @code-polisher
+- **功能等价 (Preserve Functionality)**：在优化过程中严防死守，绝不改变代码的业务逻辑，只重构“怎么写”。
+- **规范对齐 (Apply Project Standards)**：深度集成项目定义的编码规范（如 `CLAUDE.md`, `GEMINI.md`），确保优化后的代码严丝合缝。
+- **清晰度飞效 (Enhance Clarity)**：通过减少认知负荷、消除冗余逻辑，让代码像诗一样易读。
+- **平衡之道 (Maintain Balance)**：拒绝极端的“单行代码主义”，在简洁性与可读性之间寻找最优解。
+- **精准作用域 (Focus Scope)**：默认聚焦于最近修改或指定的代码片段，避免无关干扰。
 
-代码简化专家，专注于提升代码的清晰度、一致性和可维护性。
+## 🤖 智能代理 (Agents)
 
-**使用场景**:
-- 完成功能开发后优化代码
-- 重构复杂或难以维护的代码
-- 统一代码风格和规范
+### `@code-polisher`
+**代码润色专家**：专注于提升代码的清晰度、一致性和长期可维护性。
 
-**示例**:
-> "帮我优化这段代码"
-> "这个函数太复杂了，能简化一下吗？"
+- **使用场景**：
+  - ✨ 完成新功能开发后的收尾优化
+  - 🛠️ 重构遗留的“屎山”或复杂逻辑
+  - 📏 统一团队内部的代码风格与类型规范
 
-## 最佳实践
+- **交互示例**：
+  > “帮我优化这段逻辑，提高它的可读性”
+  > “这个函数嵌套太深了，能用更现代的方式重写吗？”
 
-Code Polisher 始终遵循以下原则：
-1. 优先使用 `function` 关键字而非箭头函数
-2. 顶层函数显式声明返回类型
-3. React 组件显式定义 Props 类型
-4. 避免嵌套三元运算符
-5. 多条件判断优先使用 `switch` 或 `if/else`
+## 💡 最佳实践原则
+
+Code Polisher 严格遵循以下工业级标准：
+1. **函数定义**：优先使用 `function` 声明，确保更好的调试堆栈和提升（Hoisting）。
+2. **显式类型**：顶层函数必须显式声明返回类型，拒绝隐式推断。
+3. **组件规范**：React/Vue 组件必须显式定义 Props 或接口类型。
+4. **拒绝嵌套**：严禁过度使用嵌套三元运算符，优先考虑早期返回（Early Return）。
+5. **逻辑清晰**：多条件分支优先使用 `switch` 或结构清晰的 `if/else` 块。
