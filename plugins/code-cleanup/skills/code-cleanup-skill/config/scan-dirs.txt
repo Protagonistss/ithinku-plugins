@@ -37,6 +37,7 @@ src/page:unused_page:stem,parent
 src/pages:unused_page:stem,parent
 src/components:unused_component:stem,tag
 src/views:unused_view:stem,parent
+src/assets:unused_asset:name
 # 后端项目
 src/controllers:unused_handler:stem
 src/services:unused_service:stem

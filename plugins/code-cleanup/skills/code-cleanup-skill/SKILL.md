@@ -87,7 +87,7 @@ safety:
 ### Phase 3: 执行、清扫与对比 (Execute, Purge & Diff)
 1. **自动化清理**：根据授权指令，读取 JSON 执行物理删除。
 2. **彻底清扫 (Purge)**：文件删除后，**必须**清理项目中因此产生的空目录。
-   - 执行 `find . -type d -empty -not -path "./.git/*" -delete` (或对应平台的等价命令)。
+   - 执行跨平台 Python 命令：`python -c "import pathlib; [p.rmdir() for p in sorted(pathlib.Path('.').rglob('*'), reverse=True) if p.is_dir() and not any(p.iterdir()) and '.git' not in str(p) and 'node_modules' not in str(p)]"`
 3. **二次扫描验证**：删除完成后，**自动**再次运行扫描脚本。
    - 产出 `after.json`。
 4. **生成战果报告 (Comparison)**：调用渲染脚本，使用 `--previous before.json` 参数。
