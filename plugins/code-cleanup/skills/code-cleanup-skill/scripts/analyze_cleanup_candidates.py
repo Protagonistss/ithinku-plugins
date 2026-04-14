@@ -6,6 +6,7 @@ import os
 import sys
 import subprocess
 import fnmatch
+from collections import deque
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +35,7 @@ IGNORE_DIRS = {
     ".venv",
     "venv",
     "target",
+    ".skill-workspace",
 }
 
 # 常见编程语言的 import/require 语法模式
@@ -473,6 +475,189 @@ def _resolve_relative_import(source_rel: str, import_path: str) -> Optional[str]
     return resolved if resolved else None
 
 
+# ── 依赖图构建与可达性分析 ──────────────────────────────────────────
+
+# 路径解析时尝试的扩展名（按常见度排序）
+_RESOLVE_EXTENSIONS = [".js", ".ts", ".vue", ".jsx", ".tsx", ".scss", ".css", ".less", ".py", ".go", ".java", ".rb", ".rs", ".c", ".cpp", ".h", ".hpp"]
+_RESOLVE_INDEX_NAMES = [f"index{ext}" for ext in _RESOLVE_EXTENSIONS]
+
+
+def _resolve_import_path(
+    source_rel: str,
+    import_path: str,
+    available_files: Set[str],
+) -> Optional[str]:
+    """将 import 语句中的路径解析为 reference_pool 中的实际文件路径。
+
+    解析策略（按优先级）：
+    1. 精确匹配 import_path 在 available_files 中
+    2. 扩展名探测：依次尝试 .js, .ts, .vue, .jsx, .tsx, .scss, .css, .less
+    3. Index 探测：路径 + /index.js, /index.ts 等
+
+    Args:
+        source_rel: 发起 import 的文件的相对路径
+        import_path: import 语句中的原始路径
+        available_files: reference_pool 中所有可用文件的相对路径集合
+
+    Returns:
+        解析后的相对路径，无法解析则返回 None
+    """
+    if not import_path:
+        return None
+
+    # 排除 bare module 导入（vue, vant, lodash 等）
+    clean = import_path.strip("'\"")
+    if not clean.startswith("."):
+        return None
+
+    # 先用现有的 _resolve_relative_import 解析相对路径
+    resolved = _resolve_relative_import(source_rel, clean)
+    if not resolved:
+        return None
+
+    # 1. 精确匹配
+    if resolved in available_files:
+        return resolved
+
+    # 2. 扩展名探测
+    for ext in _RESOLVE_EXTENSIONS:
+        candidate = resolved + ext
+        if candidate in available_files:
+            return candidate
+
+    # 3. Index 探测
+    for idx_name in _RESOLVE_INDEX_NAMES:
+        candidate = resolved + "/" + idx_name
+        if candidate in available_files:
+            return candidate
+
+    return None
+
+
+def build_dependency_graph(
+    reference_pool: Dict[str, str],
+    available_files: Set[str],
+) -> Tuple[Dict[str, Set[str]], Dict[str, Set[str]]]:
+    """构建文件依赖图（有向邻接表）。
+
+    使用正则提取 import 路径，通过 _resolve_import_path 解析为实际文件，
+    构建正/反向邻接表用于后续可达性分析。
+
+    Returns:
+        forward:  { file_rel: Set[被该文件导入的目标文件rel] }
+        reverse:  { file_rel: Set[导入了该文件的源文件rel] }
+    """
+    forward: Dict[str, Set[str]] = {}
+    reverse: Dict[str, Set[str]] = {}
+
+    # 提取所有 import 路径的正则（跨语言通用）
+    _IMPORT_PATH_PATTERNS = [
+        # JS/TS: import X from 'path' / import { X } from 'path'
+        re.compile(r"""^\s*import\s+.*?\s+from\s+['"]([^'"]+)['"]""", re.MULTILINE),
+        # JS/TS: import('path') / require('path')
+        re.compile(r"""(?:import|require)\s*\(\s*['"]([^'"]+)['"]""", re.MULTILINE),
+        # JS/TS: import 'path' (副作用导入)
+        re.compile(r"""^\s*import\s+['"]([^'"]+)['"]""", re.MULTILINE),
+        # JS/TS re-export: export ... from 'path'
+        re.compile(r"""export\s+(?:\{[^}]*\}\s+from|\*\s+from)\s+['"]([^'"]+)['"]""", re.MULTILINE),
+        # Python: from .xxx import / import xxx
+        re.compile(r"^\s*(?:from\s+(\.[\w.]+)\s+import|import\s+([\w.]+))", re.MULTILINE),
+        # Go: import "path"
+        re.compile(r'import\s+(?:\w+\s+)?"([^"]+)"', re.MULTILINE),
+        # Java: import pkg.Class
+        re.compile(r"import\s+([\w.]+)\s*;", re.MULTILINE),
+        # C/C++: #include "path"
+        re.compile(r'#include\s+"([^"]+)"', re.MULTILINE),
+        # Ruby: require 'path'
+        re.compile(r"(?:require|require_relative|load)\s+['\"]([^'\"]+)['\"]", re.MULTILINE),
+        # Rust: use path; mod name
+        re.compile(r"use\s+([\w:]+)\s*;", re.MULTILINE),
+        # CSS/SCSS: @import 'path', @use 'path'
+        re.compile(r"@(?:import|use)\s+['\"]([^'\"]+)['\"]", re.MULTILINE),
+    ]
+
+    def _add_edge(src: str, dst: str):
+        forward.setdefault(src, set()).add(dst)
+        reverse.setdefault(dst, set()).add(src)
+
+    for rel, text in reference_pool.items():
+        for pattern in _IMPORT_PATH_PATTERNS:
+            for m in pattern.finditer(text):
+                # Python import 可能匹配 group 1 或 group 2
+                raw_path = m.group(1) or (m.group(2) if m.lastindex >= 2 else None)
+                if not raw_path:
+                    continue
+                raw_path = raw_path.strip()
+                resolved = _resolve_import_path(rel, raw_path, available_files)
+                if resolved:
+                    _add_edge(rel, resolved)
+
+    return forward, reverse
+
+
+def identify_entry_points(
+    all_rels: Set[str],
+    keep_list: Set[str],
+) -> Set[str]:
+    """识别依赖图的入口点。
+
+    入口点来源：
+    1. keep-list 中的文件
+    2. _DEFAULT_KEEP_PATTERNS 匹配的文件（main.js, router.js 等）
+
+    注意：HTML 文件在 Vue 2 多页应用中是 co-file（与 .js/.scss 同组），
+    不应作为独立入口点，否则会阻止整个 co-file 组被标记为未使用。
+
+    Args:
+        all_rels: 所有文件的相对路径集合
+        keep_list: 白名单文件集合
+
+    Returns:
+        入口点文件集合
+    """
+    entry_points: Set[str] = set()
+
+    for rel in all_rels:
+        # keep-list 中的文件
+        if rel in keep_list:
+            entry_points.add(rel)
+            continue
+
+        # 默认保护文件也是入口点
+        if _is_default_keep(rel):
+            entry_points.add(rel)
+
+    return entry_points
+
+
+def find_reachable_files(
+    forward_graph: Dict[str, Set[str]],
+    entry_points: Set[str],
+) -> Set[str]:
+    """从入口点 BFS 遍历依赖图，返回所有可达文件。
+
+    Args:
+        forward_graph: 正向邻接表 { file: Set[imports] }
+        entry_points: 入口文件集合
+
+    Returns:
+        从入口点可达的所有文件集合
+    """
+    visited: Set[str] = set()
+    queue = deque(entry_points)
+
+    while queue:
+        node = queue.popleft()
+        if node in visited:
+            continue
+        visited.add(node)
+        for neighbor in forward_graph.get(node, set()):
+            if neighbor not in visited:
+                queue.append(neighbor)
+
+    return visited
+
+
 def build_barrel_map(reference_pool: Dict[str, str]) -> Dict[str, Dict[str, List[str]]]:
     """识别 barrel/index 文件并提取 re-export 映射。
 
@@ -758,12 +943,14 @@ def has_import_reference(text: str, stem: str, ext: str) -> bool:
     return False
 
 
-def non_self_reference_hits(target_rel: str, pool: Dict[str, str], keywords: Sequence[str]) -> List[str]:
+def non_self_reference_hits(target_rel: str, pool: Dict[str, str], keywords: Sequence[str], exclude_rels: Optional[Set[str]] = None) -> List[str]:
     hits: List[str] = []
     if not keywords:
         return hits
     for rel, text in pool.items():
         if rel == target_rel:
+            continue
+        if exclude_rels and rel in exclude_rels:
             continue
         ext = Path(rel).suffix.lower()
         for kw in keywords:
@@ -1023,9 +1210,13 @@ def _default_scan_dirs() -> List[ScanDir]:
     ]
 
 
-def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str, str], keep_list: Set[str], scan_dirs: List[ScanDir], targets: Set[str], symbol_usage: Optional[Dict[str, Tuple[List[str], List[str]]]] = None, config_driven_refs: Optional[Dict[str, List[str]]] = None) -> List[Candidate]:
-    """通用模块扫描：基于预收集的文件列表，根据 scan_dirs 配置识别未引用的文件。
-    支持符号级导出分析：即使文件被引用，如果其所有导出都未被使用，仍标记为删除候选。
+def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str, str], keep_list: Set[str], scan_dirs: List[ScanDir], targets: Set[str], symbol_usage: Optional[Dict[str, Tuple[List[str], List[str]]]] = None, config_driven_refs: Optional[Dict[str, List[str]]] = None, reachable: Optional[Set[str]] = None) -> List[Candidate]:
+    """通用模块扫描：基于依赖图可达性分析识别未引用的文件。
+
+    判定逻辑：
+    1. 如果文件在依赖图中从入口点可达 → "在使用中"（检查部分导出）
+    2. 如果文件不可达 → 确认为删除候选（弱引用降级风险）
+    3. 配置驱动引用作为额外保护
     """
     candidates: List[Candidate] = []
     scan_all = len(targets) == 0 or "." in targets or "src" in targets
@@ -1050,32 +1241,12 @@ def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str,
             if rel in keep_list or _is_default_keep(rel):
                 continue
 
-            # 根据关键词策略构建搜索关键词
-            keywords = [rel, file.name] # 始终包含相对路径和文件名本身
             stem = file.stem
             parent = file.parent.name
-            for hint in sd.keyword_hints:
-                if hint == "stem" and stem:
-                    keywords.append(stem)
-                elif hint == "parent" and parent:
-                    keywords.append(f"/{parent}/")
-                elif hint == "tag":
-                    # tag 策略：同时搜索 kebab-case（模板标签）和 PascalCase（import 名称）
-                    tag_name = extract_component_tag_name(file)
-                    keywords.append(tag_name)
-                    if stem != tag_name:
-                        keywords.append(stem)
-                elif hint == "name_variants":
-                    # name_variants 策略：生成多种命名变体
-                    for variant in extract_name_variants(file):
-                        if variant not in keywords:
-                            keywords.append(variant)
-
-            hits = non_self_reference_hits(rel, reference_pool, keywords)
             weak_signals: List[str] = []
             history_pattern_hit = infer_history_file(file)
 
-            # 弱引用检测
+            # 弱引用检测（用于不可达文件的风险降级）
             weak_token = parent if "parent" in sd.keyword_hints else stem
             weak_hits = find_weak_mentions(rel, reference_pool, weak_token)
             if weak_hits:
@@ -1102,7 +1273,42 @@ def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str,
             # ── 配置驱动引用检查 ──
             config_refs = config_driven_refs.get(rel, []) if config_driven_refs else []
 
-            # ── 综合判定逻辑 ──
+            # ── 依赖图可达性判定 ──
+            is_reachable = reachable is not None and rel in reachable
+
+            # ── 关键词引用检测（补充 import 图无法覆盖的引用方式）──
+            # Vue 2 的 common.openWindow、路由配置等不走 import
+            if not is_reachable:
+                keywords = [rel, file.name]
+                for hint in sd.keyword_hints:
+                    if hint == "stem" and stem:
+                        keywords.append(stem)
+                    elif hint == "parent" and parent:
+                        keywords.append(f"/{parent}/")
+                    elif hint == "tag":
+                        tag_name = extract_component_tag_name(file)
+                        keywords.append(tag_name)
+                        if stem != tag_name:
+                            keywords.append(stem)
+                    elif hint == "name_variants":
+                        for variant in extract_name_variants(file):
+                            if variant not in keywords:
+                                keywords.append(variant)
+
+                # 排除 co-file 组内引用：同目录下同名（stem 相同）的文件
+                # 这些文件互相引用是正常的（如 page.js import page.scss），
+                # 不应被视为"外部引用"
+                cofile_excludes: Set[str] = set()
+                file_dir = str(file.parent)
+                for other_f in all_files:
+                    if other_f.parent == file.parent and other_f.stem == stem and other_f != file:
+                        other_rel = normalize_rel(other_f, root)
+                        cofile_excludes.add(other_rel)
+
+                kw_hits = non_self_reference_hits(rel, reference_pool, keywords, exclude_rels=cofile_excludes)
+                if kw_hits:
+                    is_reachable = True
+
             if config_refs:
                 # 文件通过配置驱动方式被引用 → 标记为 medium，不标记为删除候选
                 evidence = [f"文件被配置驱动方式引用，建议人工确认"]
@@ -1118,8 +1324,8 @@ def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str,
                 )
                 continue
 
-            if hits and not all_exports_unused:
-                # 文件被引用 且 (无导出分析 或 至少一个导出被使用) → 在使用中
+            if is_reachable and not all_exports_unused:
+                # 文件在依赖图中可达 且 (无导出分析 或 至少一个导出被使用) → 在使用中
                 # 但如果有部分导出未使用，添加信息性候选
                 if some_exports_unused and file_total_exports > 0:
                     unused_pct = len(file_unused_exports) / file_total_exports * 100
@@ -1142,14 +1348,14 @@ def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str,
                     )
                 continue
 
-            # 文件未被引用 或 所有导出都未被使用 → 确定为候选
+            # 文件不可达 或 所有导出都未被使用 → 确定为候选
             risk = pick_risk(weak_signals, history_pattern_hit=history_pattern_hit)
             evidence = []
             if all_exports_unused:
                 evidence.append(f"所有 {file_total_exports} 个导出均未被任何文件导入: {', '.join(file_unused_exports[:10])}")
                 risk = "high"  # 所有导出都未使用 = 高风险可删除
             else:
-                evidence.append(f"未在源码引用池中找到对 `{file.name}` 的引用")
+                evidence.append(f"未在依赖图中找到从入口点到 `{file.name}` 的可达路径")
             if history_pattern_hit:
                 evidence.append("命中历史文件命名模式(copy/bf/old)")
             evidence.extend(weak_signals)
@@ -1272,8 +1478,15 @@ def main() -> None:
     symbol_usage = build_symbol_usage(export_map, import_map, reference_pool, barrel_map)
     log_progress(f"Symbol analysis: {len(export_map)} files with exports, {len(import_map)} files with imports, {len(barrel_map)} barrel files, {len(config_driven_refs)} config-driven refs")
 
+    log_progress("Phase 3.5: Building dependency graph and computing reachability...")
+    all_rels = set(reference_pool.keys())
+    forward_graph, reverse_graph = build_dependency_graph(reference_pool, all_rels)
+    entry_points = identify_entry_points(all_rels, keep_list)
+    reachable = find_reachable_files(forward_graph, entry_points)
+    log_progress(f"Dependency graph: {len(forward_graph)} source nodes, {sum(len(v) for v in forward_graph.values())} edges, {len(entry_points)} entry points, {len(reachable)} reachable files")
+
     log_progress("Phase 4: Analyzing modules for unused references...")
-    candidates.extend(analyze_modules(root, all_files, reference_pool, keep_list, scan_dirs, targets, symbol_usage, config_driven_refs))
+    candidates.extend(analyze_modules(root, all_files, reference_pool, keep_list, scan_dirs, targets, symbol_usage, config_driven_refs, reachable))
     
     log_progress("Phase 5: Analyzing for history/backup files...")
     candidates.extend(analyze_history_files(root, reference_pool, keep_list))
