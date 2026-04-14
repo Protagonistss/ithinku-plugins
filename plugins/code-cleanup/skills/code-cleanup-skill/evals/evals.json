@@ -3,60 +3,64 @@
   "evals": [
     {
       "id": 0,
-      "prompt": "请扫描这个 Vue2 项目，重点检查 src/page 下可能未被引用的页面文件，输出高/中/低风险分组，并给出 deletion-candidates.json 和 patch-plan.md。",
-      "expected_output": "识别未引用页面候选，按风险分级，提供证据与建议动作。",
+      "prompt": "帮我清理一下这个项目中的无用代码。",
+      "expected_output": "执行 Phase 1 扫描生成 before.json 和工业风报告，然后停止并请求授权。",
       "assertions": [
         {
-          "name": "has_summary_risk_levels",
-          "check": "deletion-candidates.json 必须包含 summary.high/summary.medium/summary.low 计数"
+          "name": "phase_1_scan_execution",
+          "check": "必须运行 analyze_cleanup_candidates.py 并将输出命名为 before.json"
         },
         {
-          "name": "candidate_has_required_fields",
-          "check": "每个候选必须包含 path/category/risk_level/evidence/suggested_action 字段"
+          "name": "render_industrial_report",
+          "check": "必须运行 render_cleanup_report.py 生成 HTML 可视化报告"
         },
         {
-          "name": "report_has_risk_sections",
-          "check": "cleanup-report.md 中至少包含 HIGH/MEDIUM/LOW 风险分组章节"
+          "name": "output_path_is_cwd",
+          "check": "产物必须生成在用户当前的 $PWD/.skill-workspace 目录下"
+        },
+        {
+          "name": "wait_for_authorization",
+          "check": "在 Phase 1 结束后必须阻塞，明确等待用户输入 'Yes' 或授权指令后再继续"
         }
       ],
       "files": []
     },
     {
       "id": 1,
-      "prompt": "请聚焦 src/components，找出未使用组件（未 import、未注册、未模板使用），输出 cleanup-report.md，并附带可执行的清理步骤，不要直接删除文件。",
-      "expected_output": "识别未使用组件候选，包含组件路径、证据、风险等级和回滚建议。",
+      "prompt": "确认，清理所有高风险项并给我看战果报告。",
+      "expected_output": "执行 Phase 3：删除文件、清空目录、二次扫描生成 after.json，最后生成对比报告。",
       "assertions": [
         {
-          "name": "report_has_evidence_per_candidate",
-          "check": "cleanup-report.md 中每个候选都要有证据列表"
+          "name": "execute_physical_deletion",
+          "check": "必须根据 before.json 记录的路径执行物理删除操作"
         },
         {
-          "name": "patch_plan_has_high_medium_steps",
-          "check": "patch-plan.md 必须包含高风险与中风险处理步骤"
+          "name": "purge_empty_directories",
+          "check": "删除文件后必须执行 find 或相关命令清理残留空目录"
         },
         {
-          "name": "default_action_is_safe",
-          "check": "默认建议动作必须是 delete_after_confirm 而不是直接删除"
+          "name": "phase_3_rescan",
+          "check": "删除后必须自动再次运行扫描生成 after.json"
+        },
+        {
+          "name": "render_diff_report",
+          "check": "必须运行 render_cleanup_report.py 并携带 --previous before.json 参数生成对比报告"
         }
       ],
       "files": []
     },
     {
       "id": 2,
-      "prompt": "请在整个 src 中识别死代码和历史备份文件（如 *-copy.js, *-bf.js, *-old.js），要求输出 machine-readable 的候选清单，并标注哪些必须人工复核。",
-      "expected_output": "识别死代码/历史文件候选，区分高置信与需人工确认项，输出 JSON 清单。",
+      "prompt": "项目全局状况如何？哪些地方最不健康？",
+      "expected_output": "从扫描结果中提取 Global Dashboard 指标，汇报健康分和各模块风险分布。",
       "assertions": [
         {
-          "name": "history_pattern_can_be_low_risk",
-          "check": "命中 history 命名模式但无弱引用线索时，risk_level 可为 low"
+          "name": "report_health_score",
+          "check": "回复中必须包含项目当前的健康分（Health Score）"
         },
         {
-          "name": "weak_reference_downgrades_to_medium",
-          "check": "存在弱引用线索时，risk_level 应降级为 medium"
-        },
-        {
-          "name": "patch_plan_has_low_risk_defer",
-          "check": "patch-plan.md 必须包含低风险延后处理建议"
+          "name": "analyze_project_stats",
+          "check": "回复中应量化说明待清理文件的总数和总体积"
         }
       ],
       "files": []

@@ -3,12 +3,18 @@ import argparse
 import json
 import re
 import os
+import sys
 import subprocess
 import fnmatch
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
+
+
+def log_progress(msg: str):
+    """向 stderr 输出带有颜色标记的进度日志。"""
+    print(f"\033[90m[Cleanup Scan] {msg}\033[0m", file=sys.stderr, flush=True)
 
 
 CODE_EXTS = {".js", ".ts", ".vue", ".jsx", ".tsx", ".html", ".json", ".scss", ".css", ".less",
@@ -180,6 +186,7 @@ def collect_code_files(root: Path, exts: Set[str]) -> Tuple[List[Path], Dict[str
             stats["total_files_scanned"] += 1
             stats["total_size_bytes"] += p.stat().st_size
             if p.suffix.lower() in exts:
+                log_progress(f"  Scanning: {normalize_rel(p, root)}")
                 files.append(p)
 
     # 1. 优先尝试使用 Git 命令获取文件列表 (自动支持 .gitignore)
@@ -317,19 +324,43 @@ def pick_risk(weak_signals: List[str], history_pattern_hit: bool = False) -> str
     return "high"
 
 
+def find_upward_config(start_path: Path, filename: str) -> Optional[Path]:
+    """从起始路径开始向上追溯，寻找配置文件。"""
+    current = start_path.resolve()
+    while True:
+        # 1. 检查标准 .code-cleanup 目录
+        candidate1 = current / ".code-cleanup" / filename
+        if candidate1.is_file():
+            return candidate1
+            
+        # 2. 检查 Cursor 插件配置路径
+        candidate2 = current / ".cursor" / "skills" / "code-cleanup-skill" / "config" / filename
+        if candidate2.is_file():
+            return candidate2
+            
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return None
+
+
 def load_keep_list(root: Path, explicit: str = "") -> Set[str]:
     if explicit:
         candidates = [Path(explicit).resolve()]
     else:
         script_dir = Path(__file__).resolve().parent
-        candidates = [
-            root / ".code-cleanup" / "keep-list.txt",
+        candidates = []
+        upward = find_upward_config(root, "keep-list.txt")
+        if upward:
+            candidates.append(upward)
+        candidates.extend([
             root / "plugins" / "code-cleanup" / "skills" / "code-cleanup-skill" / "config" / "keep-list.txt",
             script_dir.parent / "config" / "keep-list.txt",
-            root / ".cursor" / "skills" / "code-cleanup-skill" / "config" / "keep-list.txt",
-        ]
+        ])
     for candidate in candidates:
         if candidate.exists():
+            log_progress(f"Loaded keep-list from: {candidate}")
             items: Set[str] = set()
             for line in candidate.read_text(encoding="utf-8", errors="ignore").splitlines():
                 line = line.strip()
@@ -345,14 +376,17 @@ def load_ext_list(root: Path, explicit: str = "") -> Set[str]:
         candidates = [Path(explicit).resolve()]
     else:
         script_dir = Path(__file__).resolve().parent
-        candidates = [
-            root / ".code-cleanup" / "ext-list.txt",
+        candidates = []
+        upward = find_upward_config(root, "ext-list.txt")
+        if upward:
+            candidates.append(upward)
+        candidates.extend([
             root / "plugins" / "code-cleanup" / "skills" / "code-cleanup-skill" / "config" / "ext-list.txt",
             script_dir.parent / "config" / "ext-list.txt",
-            root / ".cursor" / "skills" / "code-cleanup-skill" / "config" / "ext-list.txt",
-        ]
+        ])
     for candidate in candidates:
         if candidate.exists():
+            log_progress(f"Loaded ext-list from: {candidate}")
             exts: Set[str] = set()
             for line in candidate.read_text(encoding="utf-8", errors="ignore").splitlines():
                 line = line.strip()
@@ -361,6 +395,7 @@ def load_ext_list(root: Path, explicit: str = "") -> Set[str]:
                 ext = line if line.startswith(".") else f".{line}"
                 exts.add(ext.lower())
             return exts if exts else CODE_EXTS
+    log_progress("Using default ext-list")
     return CODE_EXTS
 
 
@@ -373,14 +408,17 @@ def load_scan_dirs(root: Path, explicit: str = "") -> List[ScanDir]:
         candidates = [Path(explicit).resolve()]
     else:
         script_dir = Path(__file__).resolve().parent
-        candidates = [
-            root / ".code-cleanup" / "scan-dirs.txt",
+        candidates = []
+        upward = find_upward_config(root, "scan-dirs.txt")
+        if upward:
+            candidates.append(upward)
+        candidates.extend([
             root / "plugins" / "code-cleanup" / "skills" / "code-cleanup-skill" / "config" / "scan-dirs.txt",
             script_dir.parent / "config" / "scan-dirs.txt",
-            root / ".cursor" / "skills" / "code-cleanup-skill" / "config" / "scan-dirs.txt",
-        ]
+        ])
     for candidate in candidates:
         if candidate.exists():
+            log_progress(f"Loaded scan-dirs from: {candidate}")
             dirs: List[ScanDir] = []
             for line in candidate.read_text(encoding="utf-8", errors="ignore").splitlines():
                 line = line.strip()
@@ -393,6 +431,7 @@ def load_scan_dirs(root: Path, explicit: str = "") -> List[ScanDir]:
                 hints = [h.strip() for h in hints_str.split(",") if h.strip()]
                 dirs.append(ScanDir(dir_path=dir_path, category=category, keyword_hints=hints))
             return dirs if dirs else _default_scan_dirs()
+    log_progress("Using default scan-dirs")
     return _default_scan_dirs()
 
 
@@ -546,17 +585,28 @@ def main() -> None:
     output = Path(args.output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
 
+    log_progress(f"Initializing scan for: {root}")
     exts = load_ext_list(root, args.ext_list)
+    
+    log_progress("Phase 1: Collecting files (respecting .gitignore and pruning huge dirs)...")
     files, project_stats = collect_code_files(root, exts)
+    log_progress(f"Found {len(files)} source files to analyze.")
+
+    log_progress("Phase 2: Building reference pool (reading file contents)...")
     reference_pool = build_reference_pool(files, root)
+    
     keep_list = load_keep_list(root, args.keep_list)
     scan_dirs = load_scan_dirs(root, args.scan_dirs)
     targets = {t.replace("\\", "/").strip("/") for t in args.targets}
 
     candidates: List[Candidate] = []
+    log_progress("Phase 3: Analyzing modules for unused references...")
     candidates.extend(analyze_modules(root, reference_pool, keep_list, scan_dirs, targets))
+    
+    log_progress("Phase 4: Analyzing for history/backup files...")
     candidates.extend(analyze_history_files(root, reference_pool, keep_list))
 
+    log_progress("Finalizing: Deduplicating and summarizing results...")
     # deduplicate by path + category
     seen = set()
     deduped: List[Candidate] = []
@@ -576,7 +626,7 @@ def main() -> None:
         "candidates": [asdict(item) for item in sorted(deduped, key=lambda c: (c.risk_level, c.category, c.path))],
     }
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Generated {len(deduped)} candidates -> {output}")
+    log_progress(f"Generation complete: {len(deduped)} candidates identified -> {output}")
 
 
 if __name__ == "__main__":
