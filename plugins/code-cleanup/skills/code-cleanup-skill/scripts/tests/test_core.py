@@ -1,6 +1,6 @@
 """单元测试：code-cleanup 核心分析函数"""
 import sys
-import pytest
+import unittest
 from pathlib import Path
 
 # 将脚本目录添加到 path
@@ -20,7 +20,7 @@ from analyze_cleanup_candidates import (
 )
 
 
-class TestExtractComponentTagName:
+class TestExtractComponentTagName(unittest.TestCase):
     def test_pascal_case(self):
         assert extract_component_tag_name(Path("MyButton.vue")) == "my-button"
 
@@ -40,7 +40,7 @@ class TestExtractComponentTagName:
         assert extract_component_tag_name(Path("MyCourseItem.vue")) == "my-course-item"
 
 
-class TestExtractNameVariants:
+class TestExtractNameVariants(unittest.TestCase):
     def test_pascal_case_generates_all_variants(self):
         variants = extract_name_variants(Path("MyButton.vue"))
         assert "MyButton" in variants       # PascalCase
@@ -59,7 +59,7 @@ class TestExtractNameVariants:
         assert "MyButton" not in variants  # my-button 不是 PascalCase，不需要转
 
 
-class TestHasImportReference:
+class TestHasImportReference(unittest.TestCase):
     def test_js_import_from(self):
         text = 'import { Button } from "./components/Button"'
         assert has_import_reference(text, "Button", ".js") is True
@@ -111,7 +111,7 @@ class TestHasImportReference:
         # 这是一个已知的精度限制
 
 
-class TestInferHistoryFile:
+class TestInferHistoryFile(unittest.TestCase):
     def test_copy_suffix(self):
         assert infer_history_file(Path("login-copy.js")) is True
 
@@ -132,7 +132,7 @@ class TestInferHistoryFile:
         assert infer_history_file(Path("文件备份.txt")) is True
 
 
-class TestPickRisk:
+class TestPickRisk(unittest.TestCase):
     def test_high_risk(self):
         assert pick_risk([]) == "high"
 
@@ -143,7 +143,7 @@ class TestPickRisk:
         assert pick_risk([], history_pattern_hit=True) == "low"
 
 
-class TestIsDefaultKeep:
+class TestIsDefaultKeep(unittest.TestCase):
     def test_entry_files(self):
         assert _is_default_keep("src/main.js") is True
         assert _is_default_keep("src/App.vue") is True
@@ -168,7 +168,7 @@ class TestIsDefaultKeep:
         assert _is_default_keep("src/components/Button.vue") is False
 
 
-class TestIsPathKeyword:
+class TestIsPathKeyword(unittest.TestCase):
     def test_path_like(self):
         assert _is_path_keyword("src/utils/helper") is True
 
@@ -182,7 +182,7 @@ class TestIsPathKeyword:
         assert _is_path_keyword("src\\utils") is True
 
 
-class TestFindWeakMentions:
+class TestFindWeakMentions(unittest.TestCase):
     def test_string_path_mention(self):
         """路径片段引用：/token/ 形式"""
         pool = {"other.js": "const path = '/login/'"}
@@ -236,7 +236,7 @@ class TestFindWeakMentions:
         assert len(hits) == 0
 
 
-class TestNonSelfReferenceHits:
+class TestNonSelfReferenceHits(unittest.TestCase):
     def test_finds_reference(self):
         pool = {
             "src/utils/helper.js": "export function helper() {}",

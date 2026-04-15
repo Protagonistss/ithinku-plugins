@@ -1,6 +1,7 @@
 """单元测试：依赖图构建与可达性分析"""
 import sys
-import pytest
+import tempfile
+import unittest
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
@@ -9,12 +10,18 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from analyze_cleanup_candidates import (
     _resolve_import_path,
     build_dependency_graph,
+    build_resolver_context,
     identify_entry_points,
     find_reachable_files,
 )
 
 
-class TestResolveImportPath:
+def _write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+class TestResolveImportPath(unittest.TestCase):
     def test_exact_match(self):
         """路径精确匹配可用文件"""
         available = {"src/utils.js", "src/page.js"}
@@ -63,6 +70,83 @@ class TestResolveImportPath:
         result = _resolve_import_path("src/pages/home.js", "../utils/helper", available)
         assert result == "src/utils/helper.js"
 
+    def test_tsconfig_baseurl_resolution(self):
+        """tsconfig.baseUrl 支持无相对前缀导入"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write(
+                root / "tsconfig.json",
+                """
+                {
+                  "compilerOptions": {
+                    "baseUrl": "./src"
+                  }
+                }
+                """,
+            )
+            _write(root / "src/main.ts", 'import { helper } from "utils/helper"')
+            _write(root / "src/utils/helper.ts", "export const helper = () => {}")
+            available = {"src/main.ts", "src/utils/helper.ts"}
+            context = build_resolver_context(root, [root / "tsconfig.json"], available)
+            result = _resolve_import_path("src/main.ts", "utils/helper", available, context)
+            self.assertEqual(result, "src/utils/helper.ts")
+
+    def test_tsconfig_paths_resolution(self):
+        """tsconfig.paths 支持 alias 解析"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write(
+                root / "tsconfig.json",
+                """
+                {
+                  "compilerOptions": {
+                    "baseUrl": ".",
+                    "paths": {
+                      "@/*": ["src/*"]
+                    }
+                  }
+                }
+                """,
+            )
+            _write(root / "src/pages/home.ts", 'import { Button } from "@/components/Button"')
+            _write(root / "src/components/Button.tsx", "export const Button = () => null")
+            available = {"src/pages/home.ts", "src/components/Button.tsx"}
+            context = build_resolver_context(root, [root / "tsconfig.json"], available)
+            result = _resolve_import_path("src/pages/home.ts", "@/components/Button", available, context)
+            self.assertEqual(result, "src/components/Button.tsx")
+
+    def test_vite_alias_resolution(self):
+        """vite alias 支持常见 replacement 配置"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write(
+                root / "vite.config.ts",
+                """
+                import { fileURLToPath, URL } from "node:url"
+
+                export default {
+                  resolve: {
+                    alias: {
+                      "@": fileURLToPath(new URL("./src", import.meta.url))
+                    }
+                  }
+                }
+                """,
+            )
+            _write(root / "src/main.ts", 'import { helper } from "@/utils/helper"')
+            _write(root / "src/utils/helper.ts", "export const helper = 1")
+            available = {"src/main.ts", "src/utils/helper.ts"}
+            context = build_resolver_context(root, [root / "vite.config.ts"], available)
+            result = _resolve_import_path("src/main.ts", "@/utils/helper", available, context)
+            self.assertEqual(result, "src/utils/helper.ts")
+
+    def test_python_absolute_import_resolution(self):
+        """Python absolute import 支持常见 src 布局"""
+        available = {"src/main.py", "src/utils.py"}
+        context = build_resolver_context(Path.cwd(), [], available)
+        result = _resolve_import_path("src/main.py", "utils", available, context)
+        self.assertEqual(result, "src/utils.py")
+
     def test_empty_path(self):
         """空路径返回 None"""
         available = {"src/main.js"}
@@ -76,7 +160,7 @@ class TestResolveImportPath:
         assert result is None
 
 
-class TestBuildDependencyGraph:
+class TestBuildDependencyGraph(unittest.TestCase):
     def test_js_import_edge(self):
         """JS import 创建依赖边"""
         pool = {
@@ -126,6 +210,44 @@ class TestBuildDependencyGraph:
         forward, reverse = build_dependency_graph(pool, available)
         assert "src/utils.py" in forward.get("src/main.py", set())
 
+    def test_alias_import_edge(self):
+        """alias import 应写入依赖边"""
+        pool = {
+            "src/main.ts": 'import { helper } from "@/utils/helper"',
+            "src/utils/helper.ts": "export const helper = 1",
+        }
+        available = set(pool.keys())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write(
+                root / "tsconfig.json",
+                """
+                {
+                  "compilerOptions": {
+                    "baseUrl": ".",
+                    "paths": {
+                      "@/*": ["src/*"]
+                    }
+                  }
+                }
+                """,
+            )
+            context = build_resolver_context(root, [root / "tsconfig.json"], available)
+            forward, reverse = build_dependency_graph(pool, available, context)
+            self.assertIn("src/utils/helper.ts", forward.get("src/main.ts", set()))
+            self.assertIn("src/main.ts", reverse.get("src/utils/helper.ts", set()))
+
+    def test_python_absolute_import_edge(self):
+        """Python absolute import 应写入依赖边"""
+        pool = {
+            "src/main.py": "from utils import helper",
+            "src/utils.py": "def helper(): pass",
+        }
+        available = set(pool.keys())
+        context = build_resolver_context(Path.cwd(), [], available)
+        forward, reverse = build_dependency_graph(pool, available, context)
+        self.assertIn("src/utils.py", forward.get("src/main.py", set()))
+
     def test_reverse_graph(self):
         """反向图正确反映被依赖关系"""
         pool = {
@@ -139,7 +261,7 @@ class TestBuildDependencyGraph:
         assert "src/page.js" in reverse.get("src/utils.js", set())
 
 
-class TestIdentifyEntryPoints:
+class TestIdentifyEntryPoints(unittest.TestCase):
     def test_keep_list_entries(self):
         """keep-list 中的文件是入口点"""
         all_rels = {"src/main.js", "src/utils.js", "src/page.js"}
@@ -171,7 +293,7 @@ class TestIdentifyEntryPoints:
         assert len(entries) == 1
 
 
-class TestFindReachableFiles:
+class TestFindReachableFiles(unittest.TestCase):
     def test_simple_chain(self):
         """简单链式依赖：main → page → utils，都可达"""
         graph = {
