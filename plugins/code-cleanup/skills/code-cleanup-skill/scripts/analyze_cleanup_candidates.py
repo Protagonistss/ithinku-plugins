@@ -5,17 +5,112 @@ import re
 import os
 import sys
 import subprocess
+import time
 import fnmatch
 from collections import deque
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from pathlib import Path, PurePosixPath
+from typing import Any, Dict, Generic, List, Optional, Sequence, Set, Tuple, TypeVar
+
+
+_LOG_LEVELS = {"quiet": 0, "summary": 1, "debug": 2}
+_DEFAULT_HIT_SAMPLE_LIMIT = 10
+T = TypeVar("T")
+
+
+@dataclass
+class HitSample:
+    keyword: str
+    source_rel: str
+
+
+@dataclass
+class HitBucket:
+    label: str
+    file_count: int
+    total_hits: int = 0
+    samples: List[HitSample] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.samples is None:
+            self.samples = []
+
+
+@dataclass
+class LoadedConfig(Generic[T]):
+    value: T
+    source_type: str
+    source_path: Optional[str]
+    item_count: int
+
+
+class CleanupLogger:
+    def __init__(self) -> None:
+        self.level = "summary"
+        self.active_bucket: Optional[HitBucket] = None
+        self.hit_sample_limit = _DEFAULT_HIT_SAMPLE_LIMIT
+
+    def configure(self, level: str) -> None:
+        self.level = level if level in _LOG_LEVELS else "summary"
+        self.active_bucket = None
+
+    def enabled(self, level: str) -> bool:
+        return _LOG_LEVELS[self.level] >= _LOG_LEVELS[level]
+
+    def log(self, msg: str, level: str = "summary", *, flush: bool = False) -> None:
+        if not self.enabled(level):
+            return
+        print(f"\033[90m[Cleanup Scan] {msg}\033[0m", file=sys.stderr, flush=flush)
+
+    def warn(self, msg: str) -> None:
+        self.log(msg, level="quiet", flush=True)
+
+    def phase_start(self, name: str) -> float:
+        self.log(name, level="summary", flush=True)
+        return time.perf_counter()
+
+    def phase_end(self, name: str, start_time: float, details: str = "") -> None:
+        elapsed = time.perf_counter() - start_time
+        suffix = f" ({elapsed:.2f}s)"
+        if details:
+            suffix += f" {details}"
+        self.log(f"{name} complete{suffix}", level="summary", flush=True)
+
+    def begin_hit_bucket(self, label: str, file_count: int) -> None:
+        self.active_bucket = HitBucket(label=label, file_count=file_count)
+        self.log(f"  Analyzing {file_count} files in {label}", level="summary")
+
+    def record_hit(self, keyword: str, source_rel: str) -> None:
+        if not self.active_bucket:
+            return
+        self.active_bucket.total_hits += 1
+        if self.enabled("debug") and len(self.active_bucket.samples) < self.hit_sample_limit:
+            self.active_bucket.samples.append(HitSample(keyword=keyword, source_rel=source_rel))
+
+    def end_hit_bucket(self, candidate_count: int) -> None:
+        bucket = self.active_bucket
+        self.active_bucket = None
+        if not bucket:
+            return
+        self.log(
+            f"  Scan summary for {bucket.label}: files={bucket.file_count}, keyword_hits={bucket.total_hits}, candidates={candidate_count}",
+            level="summary",
+        )
+        if self.enabled("debug") and bucket.samples:
+            for sample in bucket.samples:
+                self.log(f"    HIT: Found '{sample.keyword}' in {sample.source_rel}", level="debug")
+            suppressed = bucket.total_hits - len(bucket.samples)
+            if suppressed > 0:
+                self.log(f"    {suppressed} more HIT logs suppressed", level="debug")
+
+
+LOGGER = CleanupLogger()
 
 
 def log_progress(msg: str):
     """向 stderr 输出带有颜色标记的进度日志。"""
-    print(f"\033[90m[Cleanup Scan] {msg}\033[0m", file=sys.stderr, flush=True)
+    LOGGER.log(msg)
 
 
 CODE_EXTS = {".js", ".ts", ".vue", ".jsx", ".tsx", ".html", ".json", ".scss", ".css", ".less",
@@ -133,6 +228,50 @@ class ScanDir:
     keyword_hints: List[str]
 
 
+@dataclass
+class ImportRef:
+    raw_path: str
+    resolved_path: Optional[str]
+    imported_names: List[str]
+    import_kind: str
+
+
+@dataclass
+class SymbolUsage:
+    used_exports: List[str]
+    unused_exports: List[str]
+    has_precise_consumers: bool
+    has_ambiguous_consumers: bool
+
+
+@dataclass
+class ProjectProfile:
+    project_type: str
+    default_scan_dirs: List[ScanDir]
+    protected_globs: List[str]
+
+
+@dataclass
+class AliasRule:
+    pattern: str
+    replacements: List[str]
+    exact: bool = False
+
+
+@dataclass
+class ResolverProfile:
+    scope_dir: str
+    base_dirs: List[str]
+    alias_rules: List[AliasRule]
+    source: str
+
+
+@dataclass
+class ResolverContext:
+    profiles: List[ResolverProfile]
+    python_module_map: Dict[str, List[str]]
+
+
 def read_text(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8", errors="ignore")
@@ -244,6 +383,320 @@ def build_reference_pool(files: Sequence[Path], root: Path, exts: Set[str]) -> D
             # log_progress(f"  Reading into pool: {rel}")
             pool[rel] = read_text(file)
     return pool
+
+
+_TS_CONFIG_FILENAMES = {"tsconfig.json", "jsconfig.json"}
+_JS_CONFIG_PREFIXES = ("vite.config.", "webpack.config.")
+_COMMON_PYTHON_SOURCE_ROOTS = {"src", "lib", "python"}
+_JS_LIKE_EXTENSIONS = {".js", ".ts", ".jsx", ".tsx", ".vue", ".scss", ".css", ".less", ".json", ".html"}
+
+
+def _normalize_candidate_path(candidate: str) -> str:
+    normalized = candidate.replace("\\", "/").strip()
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    normalized = normalized.lstrip("/")
+    normalized = re.sub(r"/{2,}", "/", normalized)
+    return normalized
+
+
+def _probe_resolved_path(candidate: str, available_files: Set[str]) -> Optional[str]:
+    normalized = _normalize_candidate_path(candidate)
+    if not normalized:
+        return None
+
+    if normalized in available_files:
+        return normalized
+
+    for ext in _RESOLVE_EXTENSIONS:
+        with_ext = normalized + ext
+        if with_ext in available_files:
+            return with_ext
+
+    for idx_name in _RESOLVE_INDEX_NAMES:
+        index_candidate = normalized + "/" + idx_name
+        if index_candidate in available_files:
+            return index_candidate
+
+    return None
+
+
+def _to_project_rel(path: Path, root: Path) -> Optional[str]:
+    try:
+        rel = str(path.resolve(strict=False).relative_to(root.resolve())).replace("\\", "/")
+        return "" if rel == "." else rel
+    except ValueError:
+        return None
+
+
+def _strip_json_comments(text: str) -> str:
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    text = re.sub(r"(^|\s)//.*?$", "", text, flags=re.MULTILINE)
+    return re.sub(r",(\s*[}\]])", r"\1", text)
+
+
+def _load_json_file(path: Path) -> Dict[str, Any]:
+    try:
+        raw = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return {}
+
+    try:
+        data = json.loads(_strip_json_comments(raw))
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _resolve_tsconfig_extends(config_path: Path, extends_value: str) -> Optional[Path]:
+    extends_value = extends_value.strip()
+    if not extends_value:
+        return None
+    if not extends_value.startswith((".", "/")):
+        return None
+
+    candidate = Path(extends_value)
+    if not candidate.suffix:
+        candidate = candidate.with_suffix(".json")
+    if not candidate.is_absolute():
+        candidate = (config_path.parent / candidate).resolve(strict=False)
+
+    return candidate if candidate.is_file() else None
+
+
+def _merge_tsconfig(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    merged = dict(base)
+    compiler_options: Dict[str, Any] = {}
+    base_compiler = base.get("compilerOptions")
+    override_compiler = override.get("compilerOptions")
+    if isinstance(base_compiler, dict):
+        compiler_options.update(base_compiler)
+    if isinstance(override_compiler, dict):
+        base_paths = compiler_options.get("paths")
+        override_paths = override_compiler.get("paths")
+        if isinstance(base_paths, dict) or isinstance(override_paths, dict):
+            merged_paths = dict(base_paths) if isinstance(base_paths, dict) else {}
+            if isinstance(override_paths, dict):
+                merged_paths.update(override_paths)
+            compiler_options["paths"] = merged_paths
+        for key, value in override_compiler.items():
+            if key == "paths":
+                continue
+            compiler_options[key] = value
+    merged.update(override)
+    if compiler_options:
+        merged["compilerOptions"] = compiler_options
+    return merged
+
+
+def _load_tsconfig(path: Path, cache: Dict[Path, Dict[str, Any]], visiting: Optional[Set[Path]] = None) -> Dict[str, Any]:
+    if path in cache:
+        return cache[path]
+
+    visiting = visiting or set()
+    if path in visiting:
+        return {}
+
+    visiting.add(path)
+    current = _load_json_file(path)
+    extends_value = current.get("extends")
+    if isinstance(extends_value, str):
+        parent_path = _resolve_tsconfig_extends(path, extends_value)
+        if parent_path:
+            current = _merge_tsconfig(_load_tsconfig(parent_path, cache, visiting), current)
+
+    visiting.remove(path)
+    cache[path] = current
+    return current
+
+
+def _normalize_config_target(raw_target: str, config_dir: Path, root: Path, base_dir: Optional[Path]) -> Optional[str]:
+    target = raw_target.strip().replace("\\", "/")
+    if not target:
+        return None
+    if target.startswith("/"):
+        return _normalize_candidate_path(target)
+    base = base_dir if base_dir is not None else config_dir
+    return _to_project_rel(base / target, root)
+
+
+def _build_tsconfig_profile(config_path: Path, root: Path, cache: Dict[Path, Dict[str, Any]]) -> Optional[ResolverProfile]:
+    data = _load_tsconfig(config_path, cache)
+    compiler_options = data.get("compilerOptions")
+    if not isinstance(compiler_options, dict):
+        return None
+
+    scope_dir = _to_project_rel(config_path.parent, root) or ""
+    base_url = compiler_options.get("baseUrl")
+    base_dir: Optional[Path] = None
+    base_dirs: List[str] = []
+    if isinstance(base_url, str) and base_url.strip():
+        base_dir = (config_path.parent / base_url.strip()).resolve(strict=False)
+        base_rel = _to_project_rel(base_dir, root)
+        if base_rel is not None:
+            base_dirs.append(base_rel)
+
+    alias_rules: List[AliasRule] = []
+    paths = compiler_options.get("paths")
+    if isinstance(paths, dict):
+        for pattern, targets in paths.items():
+            if not isinstance(pattern, str):
+                continue
+            target_list = targets if isinstance(targets, list) else [targets]
+            replacements: List[str] = []
+            for raw_target in target_list:
+                if not isinstance(raw_target, str):
+                    continue
+                normalized = _normalize_config_target(raw_target, config_path.parent, root, base_dir)
+                if normalized and normalized not in replacements:
+                    replacements.append(normalized)
+            if replacements:
+                alias_rules.append(
+                    AliasRule(
+                        pattern=pattern,
+                        replacements=replacements,
+                        exact="*" not in pattern,
+                    )
+                )
+
+    if not base_dirs and not alias_rules:
+        return None
+
+    return ResolverProfile(
+        scope_dir=scope_dir,
+        base_dirs=base_dirs,
+        alias_rules=alias_rules,
+        source=_to_project_rel(config_path, root) or config_path.name,
+    )
+
+
+_PATH_RESOLVE_CALL = r"(?:fileURLToPath\(\s*new\s+URL\(\s*['\"]([^'\"]+)['\"]\s*,\s*import\.meta\.url\s*\)\s*\)|(?:path\.)?resolve\(\s*__dirname\s*,\s*['\"]([^'\"]+)['\"]\s*\)|new\s+URL\(\s*['\"]([^'\"]+)['\"]\s*,\s*import\.meta\.url\s*\)|['\"]([^'\"]+)['\"])"
+_JS_ALIAS_OBJECT_ENTRY = re.compile(
+    rf"['\"]([^'\"]+)['\"]\s*:\s*{_PATH_RESOLVE_CALL}",
+    re.DOTALL,
+)
+_JS_ALIAS_ARRAY_ENTRY = re.compile(
+    rf"find\s*:\s*['\"]([^'\"]+)['\"].*?replacement\s*:\s*{_PATH_RESOLVE_CALL}",
+    re.DOTALL,
+)
+
+
+def _extract_js_alias_rules(text: str, config_path: Path, root: Path) -> List[AliasRule]:
+    alias_rules: List[AliasRule] = []
+
+    def add_rule(raw_pattern: str, raw_target: Optional[str]) -> None:
+        if not raw_pattern or not raw_target:
+            return
+        pattern = raw_pattern.strip()
+        replacement = _normalize_config_target(raw_target, config_path.parent, root, None)
+        if replacement is None:
+            return
+
+        exact = False
+        if pattern.endswith("$"):
+            pattern = pattern[:-1]
+            exact = True
+        elif "*" in pattern:
+            exact = False
+
+        for existing in alias_rules:
+            if existing.pattern == pattern and existing.exact == exact:
+                if replacement not in existing.replacements:
+                    existing.replacements.append(replacement)
+                return
+
+        alias_rules.append(AliasRule(pattern=pattern, replacements=[replacement], exact=exact))
+
+    for match in _JS_ALIAS_OBJECT_ENTRY.finditer(text):
+        add_rule(match.group(1), next((group for group in match.groups()[1:] if group), None))
+
+    for match in _JS_ALIAS_ARRAY_ENTRY.finditer(text):
+        add_rule(match.group(1), next((group for group in match.groups()[1:] if group), None))
+
+    return alias_rules
+
+
+def _build_js_config_profile(config_path: Path, root: Path) -> Optional[ResolverProfile]:
+    alias_rules = _extract_js_alias_rules(read_text(config_path), config_path, root)
+    if not alias_rules:
+        return None
+    return ResolverProfile(
+        scope_dir=_to_project_rel(config_path.parent, root) or "",
+        base_dirs=[],
+        alias_rules=alias_rules,
+        source=_to_project_rel(config_path, root) or config_path.name,
+    )
+
+
+def _python_module_name_from_parts(parts: Sequence[str]) -> Optional[str]:
+    if not parts:
+        return None
+    module_parts = list(parts[:-1])
+    stem = Path(parts[-1]).stem
+    if stem != "__init__":
+        module_parts.append(stem)
+    module_parts = [part for part in module_parts if part]
+    return ".".join(module_parts) if module_parts else None
+
+
+def _build_python_module_map(available_files: Set[str]) -> Dict[str, List[str]]:
+    package_dirs = {
+        str(Path(rel).parent).replace("\\", "/")
+        for rel in available_files
+        if rel.endswith("/__init__.py")
+    }
+    package_roots = {
+        pkg_dir
+        for pkg_dir in package_dirs
+        if str(Path(pkg_dir).parent).replace("\\", "/") not in package_dirs
+    }
+
+    module_map: Dict[str, List[str]] = {}
+    for rel in sorted(available_files):
+        if not rel.endswith(".py"):
+            continue
+
+        parts = list(Path(rel).parts)
+        start_indices = {0}
+        if parts and parts[0] in _COMMON_PYTHON_SOURCE_ROOTS and len(parts) > 1:
+            start_indices.add(1)
+
+        for package_root in package_roots:
+            pkg_parts = list(Path(package_root).parts)
+            if len(parts) >= len(pkg_parts) and parts[:len(pkg_parts)] == pkg_parts:
+                start_indices.add(max(0, len(pkg_parts) - 1))
+
+        for start_index in sorted(start_indices):
+            module_name = _python_module_name_from_parts(parts[start_index:])
+            if not module_name:
+                continue
+            module_map.setdefault(module_name, [])
+            if rel not in module_map[module_name]:
+                module_map[module_name].append(rel)
+
+    return module_map
+
+
+def build_resolver_context(root: Path, all_files: Sequence[Path], available_files: Set[str]) -> ResolverContext:
+    tsconfig_cache: Dict[Path, Dict[str, Any]] = {}
+    profiles: List[ResolverProfile] = []
+
+    for path in all_files:
+        name = path.name
+        if name in _TS_CONFIG_FILENAMES:
+            profile = _build_tsconfig_profile(path, root, tsconfig_cache)
+        elif any(name.startswith(prefix) for prefix in _JS_CONFIG_PREFIXES):
+            profile = _build_js_config_profile(path, root)
+        else:
+            profile = None
+        if profile:
+            profiles.append(profile)
+
+    profiles.sort(key=lambda profile: len(profile.scope_dir.split("/")) if profile.scope_dir else 0, reverse=True)
+    return ResolverContext(
+        profiles=profiles,
+        python_module_map=_build_python_module_map(available_files),
+    )
 
 # ── 导出/导入符号分析 ──────────────────────────────────────────────
 # 正则提取每个文件的导出符号和导入符号，用于符号级使用追踪
@@ -365,52 +818,154 @@ def build_export_map(reference_pool: Dict[str, str]) -> Dict[str, List[str]]:
     return export_map
 
 
-def build_import_map(reference_pool: Dict[str, str], root: Path) -> Dict[str, List[Tuple[str, List[str]]]]:
-    """分析每个代码文件，提取其导入的模块路径和符号名称。
+_JS_IMPORT_WITH_DEFAULT_AND_NAMED = re.compile(
+    r"import\s+([A-Za-z_$][\w$]*)\s*,\s*\{([^}]+)\}\s+from\s+['\"]([^'\"]+)['\"]",
+    re.MULTILINE,
+)
+_JS_NAMED_IMPORT = re.compile(
+    r"import\s+\{([^}]+)\}\s+from\s+['\"]([^'\"]+)['\"]",
+    re.MULTILINE,
+)
+_JS_NAMESPACE_IMPORT = re.compile(
+    r"import\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+['\"]([^'\"]+)['\"]",
+    re.MULTILINE,
+)
+_JS_DEFAULT_IMPORT = re.compile(
+    r"import\s+([A-Za-z_$][\w$]*)\s+from\s+['\"]([^'\"]+)['\"]",
+    re.MULTILINE,
+)
+_JS_SIDE_EFFECT_IMPORT = re.compile(
+    r"^\s*import\s+['\"]([^'\"]+)['\"]",
+    re.MULTILINE,
+)
+_JS_DYNAMIC_IMPORT = re.compile(
+    r"import\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+    re.MULTILINE,
+)
+_JS_REQUIRE = re.compile(
+    r"require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+    re.MULTILINE,
+)
+_JS_DESTRUCTURED_REQUIRE = re.compile(
+    r"(?:const|let|var)\s+\{([^}]+)\}\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+    re.MULTILINE,
+)
+_PY_FROM_IMPORT = re.compile(
+    r"from\s+([.\w]+)\s+import\s+(.+?)(?:\s*$|\s*#)",
+    re.MULTILINE,
+)
+_PY_IMPORT = re.compile(
+    r"^\s*import\s+([\w.]+)",
+    re.MULTILINE,
+)
 
-    返回: { source_rel: [(module_path, [imported_names]), ...] }
-    其中 module_path 是尝试解析后的相对路径。
+
+def _parse_symbol_names(group: str) -> List[str]:
+    names: List[str] = []
+    for part in group.split(","):
+        token = part.strip()
+        if not token:
+            continue
+        name = token.split(" as ")[0].strip()
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def build_import_map(
+    reference_pool: Dict[str, str],
+    available_files: Set[str],
+    resolver_context: Optional[ResolverContext] = None,
+) -> Dict[str, List[ImportRef]]:
+    """分析每个代码文件，提取导入来源和导入符号。
+
+    返回: { source_rel: [ImportRef, ...] }
+    ImportRef.resolved_path 仅在当前项目内的相对导入可解析时填充。
     """
-    import_map: Dict[str, List[Tuple[str, List[str]]]] = {}
+    import_map: Dict[str, List[ImportRef]] = {}
+
+    def add_import(
+        source_rel: str,
+        raw_path: str,
+        imported_names: List[str],
+        import_kind: str,
+    ) -> None:
+        raw_path = raw_path.strip()
+        if not raw_path:
+            return
+        resolved_path = _resolve_import_path(source_rel, raw_path, available_files, resolver_context)
+        import_map.setdefault(source_rel, []).append(
+            ImportRef(
+                raw_path=raw_path,
+                resolved_path=resolved_path,
+                imported_names=imported_names,
+                import_kind=import_kind,
+            )
+        )
+
     for rel, text in reference_pool.items():
         ext = Path(rel).suffix.lower()
-        patterns = _IMPORT_PATTERNS_MAP.get(ext)
-        if not patterns:
-            continue
-        imports: List[Tuple[str, List[str]]] = []
-        for pattern in patterns:
-            for m in pattern.finditer(text):
-                group = m.group(1).strip()
-                if not group:
+
+        if ext in (".js", ".ts", ".jsx", ".tsx", ".vue"):
+            destructured_require_spans: List[Tuple[int, int]] = []
+            for m in _JS_IMPORT_WITH_DEFAULT_AND_NAMED.finditer(text):
+                default_name = m.group(1).strip()
+                named_names = _parse_symbol_names(m.group(2))
+                module_path = m.group(3).strip()
+                add_import(rel, module_path, [default_name], "default")
+                add_import(rel, module_path, named_names, "named")
+
+            for m in _JS_NAMED_IMPORT.finditer(text):
+                names = _parse_symbol_names(m.group(1))
+                module_path = m.group(2).strip()
+                add_import(rel, module_path, names, "named")
+
+            for m in _JS_NAMESPACE_IMPORT.finditer(text):
+                module_path = m.group(2).strip()
+                add_import(rel, module_path, ["*"], "namespace")
+
+            for m in _JS_DEFAULT_IMPORT.finditer(text):
+                default_name = m.group(1).strip()
+                module_path = m.group(2).strip()
+                add_import(rel, module_path, [default_name], "default")
+
+            for m in _JS_SIDE_EFFECT_IMPORT.finditer(text):
+                add_import(rel, m.group(1).strip(), ["*"], "side_effect")
+
+            for m in _JS_DESTRUCTURED_REQUIRE.finditer(text):
+                names = _parse_symbol_names(m.group(1))
+                module_path = m.group(2).strip()
+                destructured_require_spans.append(m.span())
+                add_import(rel, module_path, names, "named")
+
+            for m in _JS_REQUIRE.finditer(text):
+                if any(start <= m.start() < end for start, end in destructured_require_spans):
                     continue
-                # 区分模块路径和导入名称
-                if ext in (".js", ".ts", ".jsx", ".tsx", ".vue"):
-                    # JS/TS: 模式已经匹配了具体部分
-                    # _JS_IMPORT_NAME_PATTERNS[0] 匹配 { A, B }
-                    if pattern is _JS_IMPORT_NAME_PATTERNS[0]:
-                        names = [n.strip().split(" as ")[-1].strip() for n in group.split(",") if n.strip()]
-                        imports.append(("__named_import__", names))
-                    elif pattern is _JS_IMPORT_NAME_PATTERNS[1]:
-                        imports.append(("__default_import__", [group]))
-                    elif pattern is _JS_IMPORT_NAME_PATTERNS[3]:
-                        # require('module') → 提取模块路径
-                        imports.append((group, ["*"]))
-                    else:
-                        continue
-                elif ext == ".py":
-                    if "," in group or (group and group[0].isalpha() and not group.startswith("import")):
-                        # from X import A, B → group = "A, B" (逗号分隔的名称列表)
-                        # from X import helper → group = "helper" (单个名称)
-                        names = [n.strip().split(" as ")[-1].strip() for n in group.split(",") if n.strip()]
-                        imports.append(("__named_import__", names))
-                    else:
-                        # import X → 提取模块名
-                        imports.append((group, ["*"]))
-                else:
-                    # 其他语言：提取模块路径
-                    imports.append((group, ["*"]))
-        if imports:
-            import_map[rel] = imports
+                add_import(rel, m.group(1).strip(), ["*"], "wildcard")
+
+            for m in _JS_DYNAMIC_IMPORT.finditer(text):
+                add_import(rel, m.group(1).strip(), ["*"], "dynamic")
+
+        elif ext == ".py":
+            for m in _PY_FROM_IMPORT.finditer(text):
+                module_path = m.group(1).strip()
+                names = _parse_symbol_names(m.group(2))
+                add_import(rel, module_path, names, "named")
+
+            for m in _PY_IMPORT.finditer(text):
+                module_path = m.group(1).strip()
+                add_import(rel, module_path, ["*"], "wildcard")
+
+        else:
+            patterns = _IMPORT_PATTERNS_MAP.get(ext)
+            if not patterns:
+                continue
+            for pattern in patterns:
+                for m in pattern.finditer(text):
+                    raw_path = m.group(1).strip()
+                    if raw_path:
+                        add_import(rel, raw_path, ["*"], "wildcard")
+
     return import_map
 
 
@@ -475,6 +1030,100 @@ def _resolve_relative_import(source_rel: str, import_path: str) -> Optional[str]
     return resolved if resolved else None
 
 
+def _iter_applicable_profiles(source_rel: str, resolver_context: Optional[ResolverContext]) -> List[ResolverProfile]:
+    if not resolver_context:
+        return []
+    matches: List[ResolverProfile] = []
+    for profile in resolver_context.profiles:
+        if not profile.scope_dir or _matches_scan_path(source_rel, profile.scope_dir):
+            matches.append(profile)
+    return matches
+
+
+def _expand_alias_rule(import_path: str, rule: AliasRule) -> List[str]:
+    matches: List[str] = []
+    pattern = rule.pattern.strip()
+    if not pattern:
+        return matches
+
+    if "*" in pattern:
+        prefix, suffix = pattern.split("*", 1)
+        if not import_path.startswith(prefix) or not import_path.endswith(suffix):
+            return matches
+        wildcard_value = import_path[len(prefix):]
+        if suffix:
+            wildcard_value = wildcard_value[:-len(suffix)]
+        for replacement in rule.replacements:
+            if "*" in replacement:
+                matches.append(replacement.replace("*", wildcard_value, 1))
+            else:
+                matches.append(replacement)
+        return matches
+
+    if rule.exact:
+        if import_path != pattern:
+            return matches
+        return list(rule.replacements)
+
+    if import_path == pattern:
+        return list(rule.replacements)
+    if not import_path.startswith(f"{pattern}/"):
+        return matches
+
+    suffix = import_path[len(pattern):].lstrip("/")
+    for replacement in rule.replacements:
+        if suffix:
+            matches.append(f"{replacement.rstrip('/')}/{suffix}")
+        else:
+            matches.append(replacement)
+    return matches
+
+
+def _resolve_python_absolute_import(import_path: str, resolver_context: Optional[ResolverContext]) -> Optional[str]:
+    if not resolver_context:
+        return None
+    matches = resolver_context.python_module_map.get(import_path, [])
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
+def _resolve_non_relative_import(
+    source_rel: str,
+    import_path: str,
+    available_files: Set[str],
+    resolver_context: Optional[ResolverContext],
+) -> Optional[str]:
+    direct = _probe_resolved_path(import_path, available_files)
+    if direct:
+        return direct
+
+    if import_path.startswith("/"):
+        root_relative = _probe_resolved_path(import_path.lstrip("/"), available_files)
+        if root_relative:
+            return root_relative
+
+    source_ext = Path(source_rel).suffix.lower()
+    if source_ext == ".py":
+        python_match = _resolve_python_absolute_import(import_path, resolver_context)
+        if python_match:
+            return python_match
+
+    for profile in _iter_applicable_profiles(source_rel, resolver_context):
+        for rule in profile.alias_rules:
+            for candidate in _expand_alias_rule(import_path, rule):
+                resolved = _probe_resolved_path(candidate, available_files)
+                if resolved:
+                    return resolved
+        for base_dir in profile.base_dirs:
+            base_candidate = f"{base_dir.rstrip('/')}/{import_path}" if base_dir else import_path
+            resolved = _probe_resolved_path(base_candidate, available_files)
+            if resolved:
+                return resolved
+
+    return None
+
+
 # ── 依赖图构建与可达性分析 ──────────────────────────────────────────
 
 # 路径解析时尝试的扩展名（按常见度排序）
@@ -486,6 +1135,7 @@ def _resolve_import_path(
     source_rel: str,
     import_path: str,
     available_files: Set[str],
+    resolver_context: Optional[ResolverContext] = None,
 ) -> Optional[str]:
     """将 import 语句中的路径解析为 reference_pool 中的实际文件路径。
 
@@ -505,38 +1155,23 @@ def _resolve_import_path(
     if not import_path:
         return None
 
-    # 排除 bare module 导入（vue, vant, lodash 等）
     clean = import_path.strip("'\"")
-    if not clean.startswith("."):
+    if not clean:
         return None
 
-    # 先用现有的 _resolve_relative_import 解析相对路径
-    resolved = _resolve_relative_import(source_rel, clean)
-    if not resolved:
-        return None
+    if clean.startswith("."):
+        resolved = _resolve_relative_import(source_rel, clean)
+        if not resolved:
+            return None
+        return _probe_resolved_path(resolved, available_files)
 
-    # 1. 精确匹配
-    if resolved in available_files:
-        return resolved
-
-    # 2. 扩展名探测
-    for ext in _RESOLVE_EXTENSIONS:
-        candidate = resolved + ext
-        if candidate in available_files:
-            return candidate
-
-    # 3. Index 探测
-    for idx_name in _RESOLVE_INDEX_NAMES:
-        candidate = resolved + "/" + idx_name
-        if candidate in available_files:
-            return candidate
-
-    return None
+    return _resolve_non_relative_import(source_rel, clean, available_files, resolver_context)
 
 
 def build_dependency_graph(
     reference_pool: Dict[str, str],
     available_files: Set[str],
+    resolver_context: Optional[ResolverContext] = None,
 ) -> Tuple[Dict[str, Set[str]], Dict[str, Set[str]]]:
     """构建文件依赖图（有向邻接表）。
 
@@ -561,7 +1196,7 @@ def build_dependency_graph(
         # JS/TS re-export: export ... from 'path'
         re.compile(r"""export\s+(?:\{[^}]*\}\s+from|\*\s+from)\s+['"]([^'"]+)['"]""", re.MULTILINE),
         # Python: from .xxx import / import xxx
-        re.compile(r"^\s*(?:from\s+(\.[\w.]+)\s+import|import\s+([\w.]+))", re.MULTILINE),
+        re.compile(r"^\s*(?:from\s+([.\w]+)\s+import|import\s+([\w.]+))", re.MULTILINE),
         # Go: import "path"
         re.compile(r'import\s+(?:\w+\s+)?"([^"]+)"', re.MULTILINE),
         # Java: import pkg.Class
@@ -588,7 +1223,7 @@ def build_dependency_graph(
                 if not raw_path:
                     continue
                 raw_path = raw_path.strip()
-                resolved = _resolve_import_path(rel, raw_path, available_files)
+                resolved = _resolve_import_path(rel, raw_path, available_files, resolver_context)
                 if resolved:
                     _add_edge(rel, resolved)
 
@@ -619,7 +1254,7 @@ def identify_entry_points(
 
     for rel in all_rels:
         # keep-list 中的文件
-        if rel in keep_list:
+        if _is_keep_listed(rel, keep_list):
             entry_points.add(rel)
             continue
 
@@ -658,7 +1293,11 @@ def find_reachable_files(
     return visited
 
 
-def build_barrel_map(reference_pool: Dict[str, str]) -> Dict[str, Dict[str, List[str]]]:
+def build_barrel_map(
+    reference_pool: Dict[str, str],
+    available_files: Optional[Set[str]] = None,
+    resolver_context: Optional[ResolverContext] = None,
+) -> Dict[str, Dict[str, List[str]]]:
     """识别 barrel/index 文件并提取 re-export 映射。
 
     返回: { barrel_rel: { source_rel: [exported_name1, exported_name2, ...] } }
@@ -668,6 +1307,7 @@ def build_barrel_map(reference_pool: Dict[str, str]) -> Dict[str, Dict[str, List
     特殊值 '__default__' 表示 re-export 默认导出（export { default } from './Y'）。
     """
     barrel_map: Dict[str, Dict[str, List[str]]] = {}
+    available_files = available_files or set(reference_pool.keys())
 
     for rel, text in reference_pool.items():
         filename = Path(rel).name
@@ -684,7 +1324,7 @@ def build_barrel_map(reference_pool: Dict[str, str]) -> Dict[str, Dict[str, List
                     if pattern is _JS_REEXPORT_PATTERNS[0]:
                         exported_name = m.group(1).strip()
                         source_path = m.group(2).strip()
-                        source_rel = _resolve_relative_import(rel, source_path)
+                        source_rel = _resolve_import_path(rel, source_path, available_files, resolver_context) or _resolve_relative_import(rel, source_path)
                         if source_rel:
                             reexports.setdefault(source_rel, []).append(exported_name)
 
@@ -692,7 +1332,7 @@ def build_barrel_map(reference_pool: Dict[str, str]) -> Dict[str, Dict[str, List
                     elif pattern is _JS_REEXPORT_PATTERNS[1]:
                         names_str = m.group(1).strip()
                         source_path = m.group(2).strip()
-                        source_rel = _resolve_relative_import(rel, source_path)
+                        source_rel = _resolve_import_path(rel, source_path, available_files, resolver_context) or _resolve_relative_import(rel, source_path)
                         if source_rel:
                             names = [n.strip().split(" as ")[-1].strip()
                                      for n in names_str.split(",") if n.strip()]
@@ -704,14 +1344,14 @@ def build_barrel_map(reference_pool: Dict[str, str]) -> Dict[str, Dict[str, List
                     # export * from './Y'  → groups: (./Y)
                     elif pattern is _JS_REEXPORT_PATTERNS[2]:
                         source_path = m.group(1).strip()
-                        source_rel = _resolve_relative_import(rel, source_path)
+                        source_rel = _resolve_import_path(rel, source_path, available_files, resolver_context) or _resolve_relative_import(rel, source_path)
                         if source_rel:
                             reexports.setdefault(source_rel, []).append("*")
 
                     # export { default } from './Y'  → groups: (./Y)
                     elif pattern is _JS_REEXPORT_PATTERNS[3]:
                         source_path = m.group(1).strip()
-                        source_rel = _resolve_relative_import(rel, source_path)
+                        source_rel = _resolve_import_path(rel, source_path, available_files, resolver_context) or _resolve_relative_import(rel, source_path)
                         if source_rel:
                             reexports.setdefault(source_rel, []).append("__default__")
 
@@ -721,7 +1361,7 @@ def build_barrel_map(reference_pool: Dict[str, str]) -> Dict[str, Dict[str, List
                     # from .Y import X, Z  → groups: (Y, X, Z)
                     module_name = m.group(1).strip()
                     names_str = m.group(2).strip()
-                    source_rel = _resolve_relative_import(rel, f".{module_name}")
+                    source_rel = _resolve_import_path(rel, f".{module_name}", available_files, resolver_context) or _resolve_relative_import(rel, f".{module_name}")
                     if source_rel:
                         names = [n.strip().split(" as ")[-1].strip()
                                  for n in names_str.split(",") if n.strip()]
@@ -730,7 +1370,7 @@ def build_barrel_map(reference_pool: Dict[str, str]) -> Dict[str, Dict[str, List
 
         if reexports:
             barrel_map[rel] = reexports
-            log_progress(f"  Barrel file detected: {rel} -> {list(reexports.keys())}")
+            LOGGER.log(f"  Barrel file detected: {rel} -> {list(reexports.keys())}", level="debug")
 
     return barrel_map
 
@@ -807,82 +1447,79 @@ def build_config_driven_refs(reference_pool: Dict[str, str]) -> Dict[str, List[s
     return config_refs
 
 
-def build_symbol_usage(export_map: Dict[str, List[str]], import_map: Dict[str, List[Tuple[str, List[str]]]], reference_pool: Dict[str, str], barrel_map: Optional[Dict[str, Dict[str, List[str]]]] = None) -> Dict[str, Tuple[List[str], List[str]]]:
+def build_symbol_usage(
+    export_map: Dict[str, List[str]],
+    import_map: Dict[str, List[ImportRef]],
+    barrel_map: Optional[Dict[str, Dict[str, List[str]]]] = None,
+) -> Dict[str, SymbolUsage]:
     """交叉比对导出和导入，计算每个文件的符号使用情况。
 
     支持 barrel 文件间接引用：如果源文件 A 的导出通过 barrel 文件 B 被 C 文件导入，
     则 A 的导出也会被标记为 "used"。
 
-    返回: { rel_path: (used_exports, unused_exports) }
+    返回: { rel_path: SymbolUsage }
     """
-    result: Dict[str, Tuple[List[str], List[str]]] = {}
+    result: Dict[str, SymbolUsage] = {}
 
-    # 收集所有导入的符号名称（跨所有文件的并集）
-    all_imported_names: Set[str] = set()
-    for rel, imports in import_map.items():
-        for module_path, names in imports:
-            for name in names:
-                if name not in ("*", "__named_import__", "__default_import__"):
-                    all_imported_names.add(name)
+    direct_consumers: Dict[str, List[ImportRef]] = {}
+    for imports in import_map.values():
+        for ref in imports:
+            if ref.resolved_path:
+                direct_consumers.setdefault(ref.resolved_path, []).append(ref)
 
-    # 收集通过 barrel 文件间接使用的导出名称
-    # barrel_used: { source_rel: Set[str] }  源文件中被 barrel re-export 且最终被消费的符号
-    barrel_used: Dict[str, Set[str]] = {}
+    barrel_consumers: Dict[str, List[ImportRef]] = {}
     if barrel_map:
-        for barrel_rel, sources in barrel_map.items():
-            # 收集哪些符号从 barrel 文件被其他文件导入
-            barrel_imported_names: Set[str] = set()
-            for imp_rel, imports in import_map.items():
-                if imp_rel == barrel_rel:
-                    continue
-                for _module_path, names in imports:
-                    for name in names:
-                        if name not in ("*", "__named_import__", "__default_import__"):
-                            barrel_imported_names.add(name)
+        for barrel_rel in barrel_map:
+            barrel_consumers[barrel_rel] = direct_consumers.get(barrel_rel, [])
 
-            for source_rel, exported_names in sources.items():
-                if source_rel not in barrel_used:
-                    barrel_used[source_rel] = set()
-                for exported_name in exported_names:
-                    if exported_name == "*":
-                        # export * from './Y' → 所有从 Y 导入的名称都视为被使用
-                        # 检查 barrel 被导入时使用的名称中，是否有来自 source 的导出
-                        source_exports = export_map.get(source_rel, [])
-                        for se in source_exports:
-                            if se in barrel_imported_names:
-                                barrel_used[source_rel].add(se)
-                    elif exported_name == "__default__":
-                        # export { default } from './Y' → 默认导出被 re-export
-                        # 如果 barrel 的默认导出被其他文件导入，则源文件的第一个导出视为被使用
-                        barrel_stem = Path(barrel_rel).parent.name  # 目录名作为默认导入名
-                        if barrel_stem in barrel_imported_names:
-                            source_exports = export_map.get(source_rel, [])
-                            if source_exports:
-                                barrel_used[source_rel].add(source_exports[0])
-                    else:
-                        # 具名 re-export: 如果该名称被其他文件从 barrel 导入
-                        if exported_name in barrel_imported_names:
-                            barrel_used[source_rel].add(exported_name)
-
-    # 对每个有导出的文件，检查其导出符号是否在导入列表中
     for rel, exports in export_map.items():
-        used: List[str] = []
-        unused: List[str] = []
-        barrel_names = barrel_used.get(rel, set())
-        for export_name in exports:
-            if export_name in all_imported_names:
-                used.append(export_name)
-            elif export_name in barrel_names:
-                # 通过 barrel 文件间接被使用
-                used.append(export_name)
+        used_names: Set[str] = set()
+        has_precise_consumers = False
+        has_ambiguous_consumers = False
+
+        for ref in direct_consumers.get(rel, []):
+            if ref.import_kind == "named":
+                has_precise_consumers = True
+                for name in ref.imported_names:
+                    if name in exports:
+                        used_names.add(name)
+            elif ref.import_kind == "default":
+                has_precise_consumers = True
+                if exports:
+                    used_names.add(exports[0])
             else:
-                # 也检查 default import（文件名作为默认导出名）
-                stem = Path(rel).stem
-                if stem in all_imported_names and export_name == exports[0]:
-                    used.append(export_name)
+                has_ambiguous_consumers = True
+
+        for barrel_rel, sources in (barrel_map or {}).items():
+            if rel not in sources:
+                continue
+            for ref in barrel_consumers.get(barrel_rel, []):
+                if ref.import_kind == "named":
+                    has_precise_consumers = True
+                    for exported_name in sources[rel]:
+                        if exported_name == "*":
+                            for name in ref.imported_names:
+                                if name in exports:
+                                    used_names.add(name)
+                        elif exported_name in ref.imported_names and exported_name in exports:
+                            used_names.add(exported_name)
+                elif ref.import_kind == "default":
+                    has_precise_consumers = True
+                    if "__default__" in sources[rel] and exports:
+                        used_names.add(exports[0])
+                    else:
+                        has_ambiguous_consumers = True
                 else:
-                    unused.append(export_name)
-        result[rel] = (used, unused)
+                    has_ambiguous_consumers = True
+
+        used = [name for name in exports if name in used_names]
+        unused = [name for name in exports if name not in used_names]
+        result[rel] = SymbolUsage(
+            used_exports=used,
+            unused_exports=unused,
+            has_precise_consumers=has_precise_consumers,
+            has_ambiguous_consumers=has_ambiguous_consumers,
+        )
 
     return result
 
@@ -958,11 +1595,12 @@ def non_self_reference_hits(target_rel: str, pool: Dict[str, str], keywords: Seq
                 continue
             if _is_path_keyword(kw):
                 if kw in text:
-                    log_progress(f"    HIT: Found '{kw}' in {rel}")
+                    LOGGER.record_hit(kw, rel)
                     hits.append(rel)
                     break
             else:
                 if has_import_reference(text, kw, ext):
+                    LOGGER.record_hit(kw, rel)
                     hits.append(rel)
                     break
     return hits
@@ -1105,7 +1743,7 @@ def _is_default_keep(rel_path: str) -> bool:
     return False
 
 
-def load_keep_list(root: Path, explicit: str = "") -> Set[str]:
+def load_keep_list(root: Path, explicit: str = "") -> LoadedConfig[Set[str]]:
     if explicit:
         candidates = [Path(explicit).resolve()]
     else:
@@ -1120,18 +1758,18 @@ def load_keep_list(root: Path, explicit: str = "") -> Set[str]:
         ])
     for candidate in candidates:
         if candidate.exists():
-            log_progress(f"Loaded keep-list from: {candidate}")
             items: Set[str] = set()
             for line in candidate.read_text(encoding="utf-8", errors="ignore").splitlines():
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
                 items.add(line.replace("\\", "/"))
-            return items
-    return set()
+            source_type = "explicit" if explicit else ("project" if ".code-cleanup" in str(candidate) or ".cursor" in str(candidate) else "builtin")
+            return LoadedConfig(items, source_type, str(candidate), len(items))
+    return LoadedConfig(set(), "default", None, 0)
 
 
-def load_ext_list(root: Path, explicit: str = "") -> Set[str]:
+def load_ext_list(root: Path, explicit: str = "") -> LoadedConfig[Set[str]]:
     if explicit:
         candidates = [Path(explicit).resolve()]
     else:
@@ -1146,7 +1784,6 @@ def load_ext_list(root: Path, explicit: str = "") -> Set[str]:
         ])
     for candidate in candidates:
         if candidate.exists():
-            log_progress(f"Loaded ext-list from: {candidate}")
             exts: Set[str] = set()
             for line in candidate.read_text(encoding="utf-8", errors="ignore").splitlines():
                 line = line.strip()
@@ -1154,31 +1791,31 @@ def load_ext_list(root: Path, explicit: str = "") -> Set[str]:
                     continue
                 ext = line if line.startswith(".") else f".{line}"
                 exts.add(ext.lower())
-            return exts if exts else CODE_EXTS
-    log_progress("Using default ext-list")
-    return CODE_EXTS
+            final_exts = exts if exts else CODE_EXTS
+            source_type = "explicit" if explicit else ("project" if ".code-cleanup" in str(candidate) or ".cursor" in str(candidate) else "builtin")
+            return LoadedConfig(final_exts, source_type, str(candidate), len(final_exts))
+    return LoadedConfig(CODE_EXTS, "default", None, len(CODE_EXTS))
 
 
-def load_scan_dirs(root: Path, explicit: str = "") -> List[ScanDir]:
+def load_scan_dirs(root: Path, explicit: str = "") -> LoadedConfig[List[ScanDir]]:
     """从配置文件加载扫描目录列表。格式: 目录路径:类别名:关键词策略(可选)
     例如: src/page:unused_page:stem,parent
     如果未指定关键词策略，默认使用 stem。
     """
     if explicit:
-        candidates = [Path(explicit).resolve()]
+        candidates = [(Path(explicit).resolve(), "explicit")]
     else:
         script_dir = Path(__file__).resolve().parent
         candidates = []
         upward = find_upward_config(root, "scan-dirs.txt")
         if upward:
-            candidates.append(upward)
+            candidates.append((upward, "project"))
         candidates.extend([
-            root / "plugins" / "code-cleanup" / "skills" / "code-cleanup-skill" / "config" / "scan-dirs.txt",
-            script_dir.parent / "config" / "scan-dirs.txt",
+            (root / "plugins" / "code-cleanup" / "skills" / "code-cleanup-skill" / "config" / "scan-dirs.txt", "builtin"),
+            (script_dir.parent / "config" / "scan-dirs.txt", "builtin"),
         ])
-    for candidate in candidates:
+    for candidate, source in candidates:
         if candidate.exists():
-            log_progress(f"Loaded scan-dirs from: {candidate}")
             dirs: List[ScanDir] = []
             for line in candidate.read_text(encoding="utf-8", errors="ignore").splitlines():
                 line = line.strip()
@@ -1190,9 +1827,10 @@ def load_scan_dirs(root: Path, explicit: str = "") -> List[ScanDir]:
                 hints_str = parts[2].strip() if len(parts) > 2 else "stem"
                 hints = [h.strip() for h in hints_str.split(",") if h.strip()]
                 dirs.append(ScanDir(dir_path=dir_path, category=category, keyword_hints=hints))
-            return dirs if dirs else _default_scan_dirs()
-    log_progress("Using default scan-dirs")
-    return _default_scan_dirs()
+            final_dirs = dirs if dirs else _default_scan_dirs()
+            return LoadedConfig(final_dirs, source, str(candidate), len(final_dirs))
+    default_dirs = _default_scan_dirs()
+    return LoadedConfig(default_dirs, "default", None, len(default_dirs))
 
 
 def _default_scan_dirs() -> List[ScanDir]:
@@ -1210,7 +1848,145 @@ def _default_scan_dirs() -> List[ScanDir]:
     ]
 
 
-def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str, str], keep_list: Set[str], scan_dirs: List[ScanDir], targets: Set[str], symbol_usage: Optional[Dict[str, Tuple[List[str], List[str]]]] = None, config_driven_refs: Optional[Dict[str, List[str]]] = None, reachable: Optional[Set[str]] = None) -> List[Candidate]:
+_APPLICATION_ENTRY_FILENAMES = {
+    "main.js", "main.ts", "main.jsx", "main.tsx",
+    "App.vue", "App.jsx", "App.tsx",
+    "router.js", "router.ts", "routes.js", "routes.ts",
+}
+
+_PLUGIN_REPOSITORY_KEEP_GLOBS = [
+    ".claude-plugin/**",
+    "plugins/**/hooks/**",
+    "plugins/**/skills/**/scripts/tests/**",
+    "plugins/**/skills/**/examples/**",
+    "plugins/**/skills/**/evals/**",
+]
+
+_PLUGIN_PACKAGE_KEEP_GLOBS = [
+    ".claude-plugin/**",
+    "hooks/**",
+    "skills/**/scripts/tests/**",
+    "skills/**/examples/**",
+    "skills/**/evals/**",
+]
+
+
+def _match_path_glob(rel_path: str, pattern: str) -> bool:
+    pure = PurePosixPath(rel_path)
+    return pure.match(pattern) or fnmatch.fnmatch(rel_path, pattern)
+
+
+def _is_keep_listed(rel_path: str, keep_list: Set[str]) -> bool:
+    if rel_path in keep_list:
+        return True
+    return any(_match_path_glob(rel_path, pattern) for pattern in keep_list if any(ch in pattern for ch in "*?[]"))
+
+
+def detect_project_profile(root: Path, all_files: List[Path]) -> ProjectProfile:
+    rels = {normalize_rel(path, root) for path in all_files}
+    filenames = {Path(rel).name for rel in rels}
+
+    has_plugin_repo_marketplace = ".claude-plugin/marketplace.json" in rels
+    has_plugin_package_manifest = ".claude-plugin/plugin.json" in rels
+    has_plugins_dir = any(rel.startswith("plugins/") for rel in rels)
+    has_plugin_skills = any(rel.startswith("plugins/") and rel.endswith("/SKILL.md") for rel in rels)
+    has_root_skill_dirs = any(rel.startswith(prefix) for prefix in ("skills/", "agents/", "commands/", "hooks/") for rel in rels)
+    has_app_entries = any(name in _APPLICATION_ENTRY_FILENAMES for name in filenames)
+    has_library_layout = any(rel.startswith(prefix) for prefix in ("src/", "lib/") for rel in rels) and any(
+        name in filenames for name in ("package.json", "pyproject.toml", "Cargo.toml", "go.mod")
+    )
+
+    if has_plugin_repo_marketplace or (has_plugins_dir and has_plugin_skills):
+        return ProjectProfile(
+            project_type="plugin_repository",
+            default_scan_dirs=[ScanDir("plugins", "unused_module", ["stem", "name_variants"])],
+            protected_globs=_PLUGIN_REPOSITORY_KEEP_GLOBS,
+        )
+
+    if has_plugin_package_manifest or has_root_skill_dirs:
+        return ProjectProfile(
+            project_type="plugin_package",
+            default_scan_dirs=[ScanDir("", "unused_module", ["stem", "name_variants"])],
+            protected_globs=_PLUGIN_PACKAGE_KEEP_GLOBS,
+        )
+
+    if has_app_entries:
+        return ProjectProfile(
+            project_type="application",
+            default_scan_dirs=_default_scan_dirs(),
+            protected_globs=[],
+        )
+
+    if has_library_layout:
+        return ProjectProfile(
+            project_type="library",
+            default_scan_dirs=[ScanDir("", "unused_module", ["stem", "name_variants"])],
+            protected_globs=[],
+        )
+
+    return ProjectProfile(
+        project_type="generic",
+        default_scan_dirs=[ScanDir("", "unused_module", ["stem", "name_variants"])],
+        protected_globs=[],
+    )
+
+
+def _is_profile_protected(rel_path: str, profile: ProjectProfile) -> bool:
+    return any(_match_path_glob(rel_path, pattern) for pattern in profile.protected_globs)
+
+
+def _matches_scan_path(rel: str, dir_path: str) -> bool:
+    prefix = dir_path.strip("/")
+    if not prefix:
+        return True
+    return rel == prefix or rel.startswith(f"{prefix}/")
+
+
+def resolve_scan_plan(
+    root: Path,
+    all_files: List[Path],
+    scan_dirs: List[ScanDir],
+    targets: Set[str],
+    reference_pool: Dict[str, str],
+    project_profile: ProjectProfile,
+) -> Tuple[List[ScanDir], bool, List[str]]:
+    """确定实际扫描目录；若配置目录未命中则回退到通用扫描。"""
+    scan_all = len(targets) == 0 or "." in targets or "src" in targets
+    selected: List[ScanDir] = []
+
+    for sd in scan_dirs:
+        if not scan_all and sd.dir_path not in targets:
+            continue
+        if any(_matches_scan_path(normalize_rel(f, root), sd.dir_path) for f in all_files):
+            selected.append(sd)
+
+    if selected:
+        return selected, False, []
+
+    if not reference_pool:
+        return [], False, ["No supported code files were found for cleanup analysis."]
+
+    fallback_targets = sorted(t for t in targets if t and t != ".") if not scan_all else [""]
+    effective = [ScanDir(dir_path=target, category="unused_module", keyword_hints=["stem", "name_variants"]) for target in fallback_targets]
+    warnings = [
+        f"Configured scan-dirs did not match any files for project type `{project_profile.project_type}`; fell back to generic code scan."
+    ]
+    return effective, True, warnings
+
+
+def analyze_modules(
+    root: Path,
+    all_files: List[Path],
+    reference_pool: Dict[str, str],
+    keep_list: Set[str],
+    scan_dirs: List[ScanDir],
+    symbol_usage: Optional[Dict[str, SymbolUsage]] = None,
+    config_driven_refs: Optional[Dict[str, List[str]]] = None,
+    reachable: Optional[Set[str]] = None,
+    fallback_mode: bool = False,
+    low_confidence_mode: bool = False,
+    project_profile: Optional[ProjectProfile] = None,
+) -> List[Candidate]:
     """通用模块扫描：基于依赖图可达性分析识别未引用的文件。
 
     判定逻辑：
@@ -1219,26 +1995,25 @@ def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str,
     3. 配置驱动引用作为额外保护
     """
     candidates: List[Candidate] = []
-    scan_all = len(targets) == 0 or "." in targets or "src" in targets
 
     for sd in scan_dirs:
-        if not scan_all and sd.dir_path not in targets:
-            continue
-
         # 筛选属于当前扫描目录的文件 (支持深层目录匹配)
         target_prefix = sd.dir_path.strip("/")
         module_files = [
             f for f in all_files
-            if normalize_rel(f, root) == target_prefix or normalize_rel(f, root).startswith(f"{target_prefix}/")
+            if _matches_scan_path(normalize_rel(f, root), target_prefix)
+            and normalize_rel(f, root) in reference_pool
         ]
 
         if not module_files:
             continue
 
-        log_progress(f"  Analyzing {len(module_files)} files in category: {sd.category} (prefix: {target_prefix})")
+        bucket_label = f"category={sd.category}, prefix={target_prefix or '.'}"
+        LOGGER.begin_hit_bucket(bucket_label, len(module_files))
+        bucket_candidates_before = len(candidates)
         for file in module_files:
             rel = normalize_rel(file, root)
-            if rel in keep_list or _is_default_keep(rel):
+            if _is_keep_listed(rel, keep_list) or _is_default_keep(rel) or (project_profile and _is_profile_protected(rel, project_profile)):
                 continue
 
             stem = file.stem
@@ -1260,14 +2035,14 @@ def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str,
             some_exports_unused = False
 
             if symbol_usage and rel in symbol_usage:
-                used, unused = symbol_usage[rel]
-                file_used_exports = used
-                file_unused_exports = unused
-                file_total_exports = len(used) + len(unused)
+                usage = symbol_usage[rel]
+                file_used_exports = usage.used_exports
+                file_unused_exports = usage.unused_exports
+                file_total_exports = len(file_used_exports) + len(file_unused_exports)
                 if file_total_exports > 0:
-                    if not used:
+                    if usage.has_precise_consumers and not usage.has_ambiguous_consumers and not file_used_exports:
                         all_exports_unused = True
-                    elif unused:
+                    elif usage.has_precise_consumers and not usage.has_ambiguous_consumers and file_unused_exports:
                         some_exports_unused = True
 
             # ── 配置驱动引用检查 ──
@@ -1299,7 +2074,6 @@ def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str,
                 # 这些文件互相引用是正常的（如 page.js import page.scss），
                 # 不应被视为"外部引用"
                 cofile_excludes: Set[str] = set()
-                file_dir = str(file.parent)
                 for other_f in all_files:
                     if other_f.parent == file.parent and other_f.stem == stem and other_f != file:
                         other_rel = normalize_rel(other_f, root)
@@ -1356,6 +2130,9 @@ def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str,
                 risk = "high"  # 所有导出都未使用 = 高风险可删除
             else:
                 evidence.append(f"未在依赖图中找到从入口点到 `{file.name}` 的可达路径")
+                if low_confidence_mode and risk == "high":
+                    risk = "medium"
+                    evidence.append("当前分析处于低置信度模式，建议人工复核后再删除")
             if history_pattern_hit:
                 evidence.append("命中历史文件命名模式(copy/bf/old)")
             evidence.extend(weak_signals)
@@ -1369,15 +2146,21 @@ def analyze_modules(root: Path, all_files: List[Path], reference_pool: Dict[str,
                     total_exports=file_total_exports,
                     used_exports=file_used_exports if file_used_exports else None,
                     unused_exports=file_unused_exports if file_unused_exports else None,
-                )
+                    )
             )
+        LOGGER.end_hit_bucket(len(candidates) - bucket_candidates_before)
     return candidates
 
 
-def analyze_history_files(root: Path, reference_pool: Dict[str, str], keep_list: Set[str]) -> List[Candidate]:
+def analyze_history_files(
+    root: Path,
+    reference_pool: Dict[str, str],
+    keep_list: Set[str],
+    project_profile: Optional[ProjectProfile] = None,
+) -> List[Candidate]:
     candidates: List[Candidate] = []
     for rel, _ in reference_pool.items():
-        if rel in keep_list or _is_default_keep(rel):
+        if _is_keep_listed(rel, keep_list) or _is_default_keep(rel) or (project_profile and _is_profile_protected(rel, project_profile)):
             continue
         full = root / rel
         if not infer_history_file(full):
@@ -1443,55 +2226,168 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--keep-list", default="", help="Optional keep-list file path")
     parser.add_argument("--ext-list", default="", help="Optional ext-list file path")
     parser.add_argument("--scan-dirs", default="", help="Optional scan-dirs config file path")
+    parser.add_argument("--log-level", default="summary", choices=sorted(_LOG_LEVELS.keys()), help="Log verbosity")
     parser.add_argument("--output", required=True, help="Output JSON path")
     return parser.parse_args()
 
 
+def _format_scan_dirs(scan_dirs: Sequence[ScanDir]) -> str:
+    if not scan_dirs:
+        return "<none>"
+    return ", ".join(sd.dir_path or "." for sd in scan_dirs)
+
+
+def _log_config_summary(
+    project_profile: ProjectProfile,
+    ext_config: LoadedConfig[Set[str]],
+    keep_config: LoadedConfig[Set[str]],
+    scan_config: LoadedConfig[List[ScanDir]],
+    effective_scan_dirs: Sequence[ScanDir],
+    resolver_context: ResolverContext,
+    scan_dirs_overridden: bool,
+    fallback_mode: bool,
+    analysis_warnings: Sequence[str],
+) -> None:
+    LOGGER.log(f"Project profile: {project_profile.project_type}", level="summary")
+    LOGGER.log(
+        f"ext-list: source={ext_config.source_type}, path={ext_config.source_path or '<default>'}, count={ext_config.item_count}",
+        level="summary",
+    )
+    LOGGER.log(
+        f"keep-list: source={keep_config.source_type}, path={keep_config.source_path or '<default>'}, count={keep_config.item_count}",
+        level="summary",
+    )
+    LOGGER.log(
+        f"scan-dirs: source={scan_config.source_type}, path={scan_config.source_path or '<default>'}, count={scan_config.item_count}",
+        level="summary",
+    )
+    if scan_dirs_overridden:
+        LOGGER.log(
+            f"scan-dirs overridden by project profile defaults for {project_profile.project_type}",
+            level="summary",
+        )
+    LOGGER.log(f"effective scan plan: {_format_scan_dirs(effective_scan_dirs)}", level="summary")
+    if resolver_context.profiles:
+        profile_sources = ", ".join(profile.source for profile in resolver_context.profiles[:5])
+        extra = len(resolver_context.profiles) - min(len(resolver_context.profiles), 5)
+        if extra > 0:
+            profile_sources += f", +{extra} more"
+        LOGGER.log(f"resolver profiles: {len(resolver_context.profiles)} [{profile_sources}]", level="summary")
+    else:
+        LOGGER.log("resolver profiles: 0", level="summary")
+    LOGGER.log(f"python module aliases: {len(resolver_context.python_module_map)}", level="summary")
+    if fallback_mode:
+        LOGGER.log("scan mode: fallback generic scan enabled", level="summary")
+    if analysis_warnings:
+        LOGGER.log(f"warnings: {len(analysis_warnings)}", level="summary")
+        for warning in analysis_warnings:
+            LOGGER.warn(f"Warning: {warning}")
+
+
 def main() -> None:
     args = parse_args()
+    LOGGER.configure(args.log_level)
     root = Path(args.project_root).resolve()
     output = Path(args.output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    log_progress(f"Initializing scan for: {root}")
-    exts = load_ext_list(root, args.ext_list)
-    
-    log_progress("Phase 1: Collecting all non-ignored files...")
-    all_files, project_stats = collect_files(root)
-    log_progress(f"Detected {len(all_files)} files in workspace.")
+    LOGGER.log(f"Initializing scan for: {root}", level="summary", flush=True)
+    ext_config = load_ext_list(root, args.ext_list)
+    exts = ext_config.value
 
-    log_progress("Phase 2: Building reference pool (reading code contents)...")
+    phase_start = LOGGER.phase_start("Phase 1: Collecting all non-ignored files...")
+    all_files, project_stats = collect_files(root)
+    LOGGER.phase_end("Phase 1", phase_start, f"files={len(all_files)}")
+    project_profile = detect_project_profile(root, all_files)
+
+    phase_start = LOGGER.phase_start("Phase 2: Building reference pool (reading code contents)...")
     reference_pool = build_reference_pool(all_files, root, exts)
-    log_progress(f"Reference pool built with {len(reference_pool)} code files.")
-    
-    keep_list = load_keep_list(root, args.keep_list)
-    scan_dirs = load_scan_dirs(root, args.scan_dirs)
+    resolver_context = build_resolver_context(root, all_files, set(reference_pool.keys()))
+    LOGGER.phase_end(
+        "Phase 2",
+        phase_start,
+        f"code_files={len(reference_pool)}, resolver_profiles={len(resolver_context.profiles)}, python_aliases={len(resolver_context.python_module_map)}",
+    )
+
+    keep_config = load_keep_list(root, args.keep_list)
+    keep_list = keep_config.value
+    scan_config = load_scan_dirs(root, args.scan_dirs)
+    scan_dirs = scan_config.value
+    scan_dirs_overridden = scan_config.source_type == "builtin"
+    if scan_dirs_overridden:
+        scan_dirs = project_profile.default_scan_dirs
     targets = {t.replace("\\", "/").strip("/") for t in args.targets}
+    analysis_warnings: List[str] = []
 
     candidates: List[Candidate] = []
 
-    log_progress("Phase 3: Building symbol maps (export/import analysis)...")
+    phase_start = LOGGER.phase_start("Phase 3: Building symbol maps (export/import analysis)...")
     export_map = build_export_map(reference_pool)
-    import_map = build_import_map(reference_pool, root)
-    barrel_map = build_barrel_map(reference_pool)
+    import_map = build_import_map(reference_pool, set(reference_pool.keys()), resolver_context)
+    barrel_map = build_barrel_map(reference_pool, set(reference_pool.keys()), resolver_context)
     config_driven_refs = build_config_driven_refs(reference_pool)
-    symbol_usage = build_symbol_usage(export_map, import_map, reference_pool, barrel_map)
-    log_progress(f"Symbol analysis: {len(export_map)} files with exports, {len(import_map)} files with imports, {len(barrel_map)} barrel files, {len(config_driven_refs)} config-driven refs")
+    symbol_usage = build_symbol_usage(export_map, import_map, barrel_map)
+    LOGGER.phase_end(
+        "Phase 3",
+        phase_start,
+        f"exports={len(export_map)}, imports={len(import_map)}, barrels={len(barrel_map)}, config_refs={len(config_driven_refs)}",
+    )
 
-    log_progress("Phase 3.5: Building dependency graph and computing reachability...")
+    phase_start = LOGGER.phase_start("Phase 3.5: Building dependency graph and computing reachability...")
     all_rels = set(reference_pool.keys())
-    forward_graph, reverse_graph = build_dependency_graph(reference_pool, all_rels)
+    forward_graph, reverse_graph = build_dependency_graph(reference_pool, all_rels, resolver_context)
     entry_points = identify_entry_points(all_rels, keep_list)
     reachable = find_reachable_files(forward_graph, entry_points)
-    log_progress(f"Dependency graph: {len(forward_graph)} source nodes, {sum(len(v) for v in forward_graph.values())} edges, {len(entry_points)} entry points, {len(reachable)} reachable files")
+    edge_count = sum(len(v) for v in forward_graph.values())
+    import_ref_count = sum(len(v) for v in import_map.values())
+    LOGGER.phase_end(
+        "Phase 3.5",
+        phase_start,
+        f"source_nodes={len(forward_graph)}, edges={edge_count}, entry_points={len(entry_points)}, reachable={len(reachable)}",
+    )
 
-    log_progress("Phase 4: Analyzing modules for unused references...")
-    candidates.extend(analyze_modules(root, all_files, reference_pool, keep_list, scan_dirs, targets, symbol_usage, config_driven_refs, reachable))
-    
-    log_progress("Phase 5: Analyzing for history/backup files...")
-    candidates.extend(analyze_history_files(root, reference_pool, keep_list))
+    effective_scan_dirs, fallback_mode, scan_warnings = resolve_scan_plan(root, all_files, scan_dirs, targets, reference_pool, project_profile)
+    analysis_warnings.extend(scan_warnings)
+    if reference_pool and not entry_points:
+        analysis_warnings.append("No entry points were identified from keep-list or defaults; reachability confidence is low.")
+    if reference_pool and import_ref_count > 0 and edge_count == 0:
+        analysis_warnings.append("No intra-project dependency edges were resolved; alias-based or non-relative imports may be missed.")
+    low_confidence_mode = bool(scan_warnings) or (reference_pool and not entry_points) or (reference_pool and import_ref_count > 0 and edge_count == 0)
+    _log_config_summary(
+        project_profile,
+        ext_config,
+        keep_config,
+        scan_config,
+        effective_scan_dirs,
+        resolver_context,
+        scan_dirs_overridden,
+        fallback_mode,
+        analysis_warnings,
+    )
 
-    log_progress("Finalizing: Deduplicating and summarizing results...")
+    phase_start = LOGGER.phase_start("Phase 4: Analyzing modules for unused references...")
+    candidates.extend(
+        analyze_modules(
+            root,
+            all_files,
+            reference_pool,
+            keep_list,
+            effective_scan_dirs,
+            symbol_usage,
+            config_driven_refs,
+            reachable,
+            fallback_mode=fallback_mode,
+            low_confidence_mode=bool(low_confidence_mode),
+            project_profile=project_profile,
+        )
+    )
+    LOGGER.phase_end("Phase 4", phase_start, f"candidates={len(candidates)}")
+
+    phase_start = LOGGER.phase_start("Phase 5: Analyzing for history/backup files...")
+    candidates.extend(analyze_history_files(root, reference_pool, keep_list, project_profile))
+    LOGGER.phase_end("Phase 5", phase_start, f"candidates={len(candidates)}")
+
+    phase_start = LOGGER.phase_start("Finalizing: Deduplicating and summarizing results...")
     # deduplicate by path + category
     seen = set()
     deduped: List[Candidate] = []
@@ -1503,15 +2399,23 @@ def main() -> None:
         deduped.append(item)
 
     final_summary = summarize(deduped, project_stats)
+    analysis_warnings = list(dict.fromkeys(analysis_warnings))
     result = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "project_root": str(root).replace("\\", "/"),
+        "project_type": project_profile.project_type,
         "summary": final_summary["risk_summary"],
         "project_stats": final_summary["project_stats"],
+        "analysis_warnings": analysis_warnings,
         "candidates": [asdict(item) for item in sorted(deduped, key=lambda c: (c.risk_level, c.category, c.path))],
     }
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    log_progress(f"Generation complete: {len(deduped)} candidates identified -> {output}")
+    LOGGER.phase_end(
+        "Finalize",
+        phase_start,
+        f"candidates={len(deduped)}, health_score={final_summary['project_stats']['health_score']}",
+    )
+    LOGGER.log(f"Generation complete: {len(deduped)} candidates identified -> {output}", level="quiet", flush=True)
 
 
 if __name__ == "__main__":

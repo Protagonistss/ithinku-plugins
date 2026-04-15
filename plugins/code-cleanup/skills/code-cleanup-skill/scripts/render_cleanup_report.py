@@ -29,6 +29,18 @@ def load_candidates(path: Path) -> Dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def render_analysis_warnings_markdown(data: Dict) -> List[str]:
+    warnings = data.get("analysis_warnings", [])
+    if not warnings:
+        return []
+
+    lines = ["## Analysis Warnings", ""]
+    for warning in warnings:
+        lines.append(f"- {warning}")
+    lines.append("")
+    return lines
+
+
 def render_report(data: Dict) -> str:
     grouped = defaultdict(list)
     for item in data.get("candidates", []):
@@ -41,6 +53,8 @@ def render_report(data: Dict) -> str:
     lines.append("")
     lines.append(f"- 生成时间: {data.get('generated_at', '')}")
     lines.append(f"- 项目根目录: `{data.get('project_root', '')}`")
+    if data.get("project_type"):
+        lines.append(f"- 项目类型: `{data.get('project_type')}`")
     lines.append("")
     
     lines.append("## Global Dashboard (项目全局状况)")
@@ -51,6 +65,7 @@ def render_report(data: Dict) -> str:
     lines.append(f"- 待清理死代码文件数: {stats.get('unused_files_count', 0)}")
     lines.append(f"- 待清理死代码总体积: {format_size(stats.get('unused_size_bytes', 0))}")
     lines.append("")
+    lines.extend(render_analysis_warnings_markdown(data))
 
     summary = data.get("summary", {})
     lines.append("## Candidate Summary (风险摘要)")
@@ -92,7 +107,15 @@ def render_patch_plan(data: Dict) -> str:
     lines.append("")
     lines.append(f"- 生成时间: {datetime.now(timezone.utc).isoformat()}")
     lines.append("- 默认策略: 先处理高风险候选，再人工验证中风险候选")
+    if data.get("project_type"):
+        lines.append(f"- 项目类型: `{data.get('project_type')}`")
     lines.append("")
+    if data.get("analysis_warnings"):
+        lines.append("## Analysis Warnings")
+        lines.append("")
+        for warning in data["analysis_warnings"]:
+            lines.append(f"- {warning}")
+        lines.append("")
     lines.append("## Step 1: 处理高风险候选")
     lines.append("")
     if not high:
@@ -123,16 +146,14 @@ def render_patch_plan(data: Dict) -> str:
     lines.append("")
     lines.append("## Step 4: 清理残留空目录")
     lines.append("")
-    lines.append("## Step 4: 清理残留空目录")
-    lines.append("")
     lines.append("- 文件删除后，执行以下 Python 命令清扫空目录（跨平台）：")
-    lines.append("  `python -c \"import pathlib; [p.rmdir() for p in sorted(pathlib.Path('.').rglob('*'), reverse=True) if p.is_dir() and not any(p.iterdir()) and '.git' not in str(p) and 'node_modules' not in str(p)]\"`")
+    lines.append("  `python3 -c \"import pathlib; [p.rmdir() for p in sorted(pathlib.Path('.').rglob('*'), reverse=True) if p.is_dir() and not any(p.iterdir()) and '.git' not in str(p) and 'node_modules' not in str(p)]\"`")
     lines.append("")
     lines.append("## Step 5: 生成战果对比报告")
     lines.append("")
     lines.append("- 清理完成后，再次运行扫描并执行对比：")
-    lines.append("  `python analyze_cleanup_candidates.py --output after.json`")
-    lines.append("  `python render_cleanup_report.py --input after.json --previous before.json --output-dir result/`")
+    lines.append("  `python3 analyze_cleanup_candidates.py --output after.json`")
+    lines.append("  `python3 render_cleanup_report.py --input after.json --previous before.json --output-dir result/`")
     lines.append("")
     lines.append("## 回滚建议")
     lines.append("")
@@ -174,7 +195,9 @@ def render_report_html(data: Dict, prev_data: Dict = None) -> str:
     summary = data.get("summary", {})
     gen_at = data.get("generated_at", "")
     project_root = data.get("project_root", "")
+    project_type = data.get("project_type", "")
     stats = data.get("project_stats", {})
+    warnings = data.get("analysis_warnings", [])
 
     health_score = stats.get("health_score", 0)
     health_color = "#22c55e" if health_score > 90 else "#f59e0b" if health_score > 70 else "#ef4444"
@@ -255,6 +278,15 @@ def render_report_html(data: Dict, prev_data: Dict = None) -> str:
     s_high = summary.get("high", 0)
     s_medium = summary.get("medium", 0)
     s_low = summary.get("low", 0)
+    warnings_html = ""
+    if warnings:
+        warning_items = "".join([f"<li>{warning}</li>" for warning in warnings])
+        warnings_html = f"""
+        <div class="warning-panel">
+            <div class="warning-title">Analysis Warnings</div>
+            <ul class="warning-list">{warning_items}</ul>
+        </div>
+        """
 
     # 用 f-string 直接拼接，避免 safe_substitute 的静默占位符残留问题
     return f"""<!DOCTYPE html>
@@ -306,6 +338,30 @@ def render_report_html(data: Dict, prev_data: Dict = None) -> str:
             padding: 20px;
             margin-bottom: 40px;
             box-shadow: 8px 8px 0 var(--black);
+        }}
+        .warning-panel {{
+            background: var(--warning);
+            border: var(--border-width) solid var(--black);
+            padding: 20px;
+            margin-bottom: 40px;
+            box-shadow: 8px 8px 0 var(--black);
+        }}
+        .warning-title {{
+            font-weight: 900;
+            font-size: 18px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            border-bottom: 2px solid var(--black);
+            padding-bottom: 4px;
+        }}
+        .warning-list {{
+            margin: 0;
+            padding-left: 18px;
+            font-size: 13px;
+            font-weight: 600;
+        }}
+        .warning-list li {{
+            margin-bottom: 6px;
         }}
         .diff-title {{ font-weight: 900; font-size: 18px; text-transform: uppercase; margin-bottom: 15px; border-bottom: 2px solid var(--black); padding-bottom: 5px; }}
         .diff-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }}
@@ -394,16 +450,17 @@ def render_report_html(data: Dict, prev_data: Dict = None) -> str:
 <body>
     <header>
         <h1>Cleanup Analysis</h1>
-        <div class="meta">DATE: <b>{gen_at}</b> | ROOT: <code>{project_root}</code></div>
+        <div class="meta">DATE: <b>{gen_at}</b> | ROOT: <code>{project_root}</code>{f" | TYPE: <b>{project_type}</b>" if project_type else ""}</div>
     </header>
 
     {diff_html}
+    {warnings_html}
 
     <div class="dashboard">
         <div class="stat-card">
             <span class="stat-label">HEALTH SCORE</span>
             <span class="stat-value health-score">{health_score}%</span>
-            <div class="stat-sub">Overall system integrity</div>
+            <div class="stat-sub">{"Confidence warnings present" if warnings else "Overall system integrity"}</div>
         </div>
         <div class="stat-card">
             <span class="stat-label">TOTAL SCAN</span>
