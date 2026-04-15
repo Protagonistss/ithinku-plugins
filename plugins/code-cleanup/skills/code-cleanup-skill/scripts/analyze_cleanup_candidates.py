@@ -1580,6 +1580,33 @@ def has_import_reference(text: str, stem: str, ext: str) -> bool:
     return False
 
 
+_HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+_BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
+_LINE_COMMENT_RE = re.compile(r"(^|\s)//.*?$", re.MULTILINE)
+_PY_LINE_COMMENT_RE = re.compile(r"(^|\s)#.*?$", re.MULTILINE)
+
+
+def strip_comments_for_reference_scan(text: str, ext: str) -> str:
+    """为弱引用/关键词扫描移除注释内容，避免注释中的旧路径保活文件。"""
+    if not text:
+        return text
+
+    cleaned = text
+    if ext in {".html", ".vue"}:
+        cleaned = _HTML_COMMENT_RE.sub("", cleaned)
+
+    if ext in {".js", ".ts", ".jsx", ".tsx", ".vue", ".css", ".scss", ".less"}:
+        cleaned = _BLOCK_COMMENT_RE.sub("", cleaned)
+
+    if ext in {".js", ".ts", ".jsx", ".tsx", ".vue"}:
+        cleaned = _LINE_COMMENT_RE.sub(r"\1", cleaned)
+
+    if ext == ".py":
+        cleaned = _PY_LINE_COMMENT_RE.sub(r"\1", cleaned)
+
+    return cleaned
+
+
 def non_self_reference_hits(target_rel: str, pool: Dict[str, str], keywords: Sequence[str], exclude_rels: Optional[Set[str]] = None) -> List[str]:
     hits: List[str] = []
     if not keywords:
@@ -1590,16 +1617,17 @@ def non_self_reference_hits(target_rel: str, pool: Dict[str, str], keywords: Seq
         if exclude_rels and rel in exclude_rels:
             continue
         ext = Path(rel).suffix.lower()
+        scan_text = strip_comments_for_reference_scan(text, ext)
         for kw in keywords:
             if not kw:
                 continue
             if _is_path_keyword(kw):
-                if kw in text:
+                if kw in scan_text:
                     LOGGER.record_hit(kw, rel)
                     hits.append(rel)
                     break
             else:
-                if has_import_reference(text, kw, ext):
+                if has_import_reference(scan_text, kw, ext):
                     LOGGER.record_hit(kw, rel)
                     hits.append(rel)
                     break
@@ -1631,8 +1659,10 @@ def find_weak_mentions(target_rel: str, pool: Dict[str, str], token: str) -> Lis
     for rel, text in pool.items():
         if rel == target_rel:
             continue
+        ext = Path(rel).suffix.lower()
+        scan_text = strip_comments_for_reference_scan(text, ext)
         for pattern, _desc in weak_patterns:
-            if pattern.search(text):
+            if pattern.search(scan_text):
                 hits.append(rel)
                 break  # 每个文件只记录一次
     return hits
