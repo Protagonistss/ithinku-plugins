@@ -48,10 +48,21 @@ ithinku-plugins/
 ```bash
 # 在 Claude Code 终端执行
 /plugin add code-review
+```
+
+### 2. 注册为自定义市场安装 (Advanced)
+您可以将本仓库注册为您的私有市场，注册后可以直接通过名称安装本仓库内的所有插件：
+
+```bash
+# 1. 注册本仓库市场
+/plugin marketplace add Protagonistss/ithinku-plugins
+
+# 2. 从本市场安装指定插件
+/plugin add code-review
 /plugin add git-tools
 ```
 
-### 2. 通过 GitHub 远程地址安装
+### 3. 通过 GitHub 远程地址安装
 直接从本仓库的远程地址安装最新版本，无需克隆代码：
 
 ```bash

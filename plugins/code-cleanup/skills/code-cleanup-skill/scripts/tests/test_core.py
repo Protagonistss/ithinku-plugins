@@ -10,6 +10,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from analyze_cleanup_candidates import (
     has_import_reference,
     non_self_reference_hits,
+    strip_comments_for_reference_scan,
     extract_component_tag_name,
     extract_name_variants,
     infer_history_file,
@@ -109,6 +110,40 @@ class TestHasImportReference(unittest.TestCase):
         # Button 出现在 import 后200字符内，但不跟在引号后面
         # 由于 import pattern 匹配了 from './other'，Button 在后续200字符内
         # 这是一个已知的精度限制
+
+
+class TestStripCommentsForReferenceScan(unittest.TestCase):
+    def test_html_comment_removed(self):
+        text = '<div></div><!-- <span @tap="goDemo">demo-page</span> -->'
+        cleaned = strip_comments_for_reference_scan(text, ".html")
+        assert "demo-page" not in cleaned
+        assert "goDemo" not in cleaned
+
+    def test_js_comments_removed(self):
+        text = """
+        // ../../demo-page/demo-page/demo-page.html
+        const x = 1
+        /* demo-page */
+        """
+        cleaned = strip_comments_for_reference_scan(text, ".js")
+        assert "demo-page" not in cleaned
+        assert "const x = 1" in cleaned
+
+    def test_vue_comment_removed(self):
+        text = """
+        <template>
+        <!-- <div @tap="getmoreother('spe')">demo-page</div> -->
+        <div>live</div>
+        </template>
+        <script>
+        // demo-page
+        export default {}
+        </script>
+        """
+        cleaned = strip_comments_for_reference_scan(text, ".vue")
+        assert "demo-page" not in cleaned
+        assert "getmoreother" not in cleaned
+        assert "export default {}" in cleaned
 
 
 class TestInferHistoryFile(unittest.TestCase):
@@ -235,6 +270,16 @@ class TestFindWeakMentions(unittest.TestCase):
         hits = find_weak_mentions("target.js", pool, "login")
         assert len(hits) == 0
 
+    def test_html_comment_does_not_count_as_mention(self):
+        pool = {"other.html": '<!-- <span @tap="getmoreother()">/demo-page/</span> -->'}
+        hits = find_weak_mentions("target.js", pool, "demo-page")
+        assert len(hits) == 0
+
+    def test_js_comment_does_not_count_as_mention(self):
+        pool = {"other.js": "// ../../demo-page/demo-page/demo-page.html"}
+        hits = find_weak_mentions("target.js", pool, "demo-page")
+        assert len(hits) == 0
+
 
 class TestNonSelfReferenceHits(unittest.TestCase):
     def test_finds_reference(self):
@@ -258,4 +303,16 @@ class TestNonSelfReferenceHits(unittest.TestCase):
             "src/page/main.js": 'import { helper } from "../utils/helper.js"',
         }
         hits = non_self_reference_hits("src/utils/dead.js", pool, ["dead"])
+        assert len(hits) == 0
+
+    def test_html_comment_does_not_keep_target_alive(self):
+        pool = {
+            "src/page/demo-page/demo-page.html": "<div>demo</div>",
+            "src/page/polymer/polymer-list.html": '<!-- <span @tap="getmoreother()">../../demo-page/demo-page/demo-page.html</span> -->',
+        }
+        hits = non_self_reference_hits(
+            "src/page/demo-page/demo-page.html",
+            pool,
+            ["../../demo-page/demo-page/demo-page.html", "demo-page.html"],
+        )
         assert len(hits) == 0
