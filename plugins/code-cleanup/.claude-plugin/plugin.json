@@ -1,9 +1,0 @@
-{
-  "name": "code-cleanup",
-  "version": "0.0.1",
-  "description": "项目代码清理插件，支持多语言（JS/TS/Python/Go/Java 等），识别未引用模块、未使用组件与历史死代码并生成安全候选方案",
-  "author": {
-    "name": "huangshan",
-    "email": "protagonisths@gmail.com"
-  }
-}

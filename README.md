@@ -24,7 +24,6 @@
 ```text
 ithinku-plugins/
 ├── plugins/                    # 🛠️ 插件核心目录
-│   ├── code-cleanup/          # 🔹 代码清理：多语言/跨平台项目瘦身，智能识别未引用资源与死代码
 │   ├── code-polisher/         # 🔹 代码润色：自动优化风格与可读性
 │   ├── code-review/           # 🔹 代码审查：安全、性能及质量检查
 │   ├── git-tools/             # 🔹 Git 助手：智能提交、分支管理及流转
@@ -69,9 +68,6 @@ ithinku-plugins/
 # 格式: /plugin add {GitHub_URL}
 # 示例：安装代码审查插件
 /plugin add https://github.com/Protagonistss/ithinku-plugins/tree/main/plugins/code-review
-
-# 示例：安装代码清理插件 (Code Cleanup)
-/plugin add https://github.com/Protagonistss/ithinku-plugins/tree/main/plugins/code-cleanup
 ```
 
 ### 3. 本地开发安装 (Local Development)
@@ -83,9 +79,10 @@ ithinku-plugins/
 ```
 
 > [!TIP]
-> **独立 Skill 安装：** 如果您只需要插件中的某项特定功能（例如代码分析技能），可以精准指向 `skills` 子目录进行安装：
+> **独立 Skill 安装：** 如果您只需要单独的 Skill，可以直接安装对应的 `skills` 子目录：
 > ```bash
 > /plugin add ./plugins/code-review/skills/code-analysis
+> /plugin add ./plugins/code-cleanup/skills/code-cleanup-skill
 > ```
 
 ---
@@ -95,12 +92,15 @@ ithinku-plugins/
 | 插件名称 | 核心功能描述 | 触发方式 |
 | :--- | :--- | :--- |
 | **🔍 Code Review** | 聚焦代码质量、安全性与性能审查 | `/code-review:review` |
-| **🧹 Code Cleanup** | **[NEW]** 多语言(JS/TS, Py, Go等)项目深度扫描，识别未引用文件、死代码及备份，生成安全清理报告 | 智能触发 ("清理代码" / "项目瘦身") |
 | **🌳 Git Tools** | 语义化提交、分支管理与历史分析 | `/git-tools:ct-cmd` \| `@git-expert` |
 | **🧪 Test Gen** | 自动生成测试用例、Mock 与覆盖率 | `/test-generator:test` |
 | **✨ Code Polisher**| 提升代码可读性与表达力 | `@code-polisher` |
 | **📦 Frameworks** | React / Vue 2 & 3 生态深度支持 | `@react-coder` \| `@vue-coder` |
 | **🎨 UI Design** | 界面设计规范与 Accessibility 巡检 | `@ui-design` |
+
+> [!NOTE]
+> 仓库中另外保留了一个独立 Skill：`plugins/code-cleanup/skills/code-cleanup-skill`。
+> 它不再作为插件发布，专门用于 Vue 多页面项目的瘦身分析与清理决策。
 
 ---
 

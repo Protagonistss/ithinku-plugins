@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Total_Plugins-8-blueviolet.svg" alt="Total Plugins">
+  <img src="https://img.shields.io/badge/Total_Plugins-7-blueviolet.svg" alt="Total Plugins">
   <img src="https://img.shields.io/badge/Language-Multi-green.svg" alt="Languages">
   <img src="https://img.shields.io/badge/Frameworks-React_|_Vue-orange.svg" alt="Frameworks">
 </p>
@@ -18,7 +18,6 @@
 
 ### 🔍 质量与安全 (Quality & Security)
 *   **[Code Review](./code-review/README.md)**：全方位代码审查专家，涵盖安全 (OWASP Top 10)、性能瓶颈及架构合理性。
-*   **[Code Cleanup](./code-cleanup/README.md)**：项目“瘦身”专家，智能识别并清理未引用资源、死代码及残留空目录。
 *   **[Code Polisher](./code-polisher/README.md)**：代码润色工具，在不改变功能的前提下提升代码的清晰度与规范性。
 
 ### 🏗️ 框架与工程 (Development & Engineering)
@@ -29,6 +28,9 @@
 ### ⚙️ 工具与自动化 (Tools & Automation)
 *   **[Git Tools](./git-tools/README.md)**：智能 Git 助手，提供语义化提交、规范化分支管理及复杂工作流自动化。
 *   **[Test Generator](./test-generator/README.md)**：测试自动化专家，一键生成高覆盖率的单元测试、Mock 数据及边界用例。
+
+### 🎯 独立 Skill (Standalone Skills)
+*   **Code Cleanup Skill**：位于 `./code-cleanup/skills/code-cleanup-skill/SKILL.md`，专注于 Vue 多页面项目的瘦身分析，不再作为插件发布。
 
 ---
 

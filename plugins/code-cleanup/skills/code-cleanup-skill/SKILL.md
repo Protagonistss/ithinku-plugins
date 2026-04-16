@@ -1,217 +1,141 @@
 ---
 name: code-cleanup-skill
-description: 清理项目中的未引用模块、未使用组件与死代码。支持 JS/TS、Python、Go、Java、PHP、Ruby、Rust、C/C++ 等多语言项目。只要用户提到"代码清理""未引用""未使用组件""死代码""瘦身项目""删除无用文件""清理历史备份文件（copy/bf/old）"，都应优先使用本 Skill。即使用户没有明确说"Skill"，但目标是识别或清理无用代码，也应触发。
+description: 用于分析 Vue 多页面项目，尤其是 Vue 2 + Webpack MPA，判断页面组、组件、模块与静态资源是否可清理。用户提到“Vue 多页面”“页面瘦身”“清理无用页面”“清理无用组件”“清理无用资源”“代码清理”时应优先使用本 Skill。
 ---
 
 # Code Cleanup Skill
 
-用于在任何项目中执行"安全优先"的清理分析，输出可执行的候选变更而不是直接删除文件。
+用于分析 Vue 多页面项目是否存在可安全清理的页面组、组件、模块与静态资源。
+默认目标是帮助用户做出删除决策，而不是直接产出脚本、报告文件或自动执行清理。
 
 ## 适用场景
 
-- 用户希望清理未引用的页面、组件、模块
-- 用户希望识别死代码、历史备份文件、重复实现
-- 用户需要"可落地"的清理报告与补丁方案
+- 用户要分析 Vue 多页面项目的“瘦身”空间
+- 用户要确认某个页面、组件、模块、资源是否仍在使用
+- 用户要做清理前的风险分层和删除顺序规划
 
-## 支持语言
+若项目明显不是 Vue 多页面结构，应先指出不匹配，不要强行套用本 Skill。
 
-当前以 **JS/TS/Vue 工程导入场景** 为主，其他语言为 best-effort 检测；若无法精确解析，会在报告中输出 warning：
+## 分析对象
 
-| 语言 | 扩展名 | 检测的 import 模式 |
-|------|--------|-------------------|
-| JS/TS | .js .ts .jsx .tsx .vue | 相对 import/require/dynamic import/re-export，`tsconfig/jsconfig` 的 `baseUrl/paths`，常见 Vite/Webpack alias |
-| Python | .py | 相对 `from .x import y`，以及常见 `src/` / package 布局下的绝对导入 |
-| Go | .go | import（best-effort） |
-| Java | .java | import（best-effort） |
-| PHP | .php | require/include/use（best-effort） |
-| Ruby | .rb | require/require_relative/load（best-effort） |
-| Rust | .rs | use/mod（best-effort） |
-| C/C++ | .c .cpp .h .hpp | #include（best-effort） |
+优先覆盖以下三类对象：
 
-## 默认行为
+1. **页面组**
+   同一目录下、同一 basename 的 `.html`、`.js`、`.ts`、`.scss`、`.css`、`.less` 视为一个 `page group`。
+   删除页面时默认以 `page group` 为单位，不按单文件拆删。
+2. **组件与模块**
+   包括 `.vue`、`.js`、`.ts` 组件文件、工具模块、服务模块、公共封装。
+3. **静态资源**
+   包括图片、字体、媒体资源，以及通过模板、HTML、CSS、JS 明确引用的静态文件。
 
-1. 默认进入 `patch-candidates` 模式：生成候选，不直接删除
-2. **性能与过滤优化**：
-   - **原生 Git 支持**：优先通过 `git ls-files` 获取文件列表，原生支持所有 `.gitignore` 规则（包含父级目录中的规则）。
-   - **高效遍历回退**：非 Git 环境下自动使用带“剪枝（Prune）”技术的 `os.walk` 遍历，直接跳过 `node_modules`、`.idea`、`.vscode` 等巨大干扰目录。
-   - **向上查找 `.gitignore`**：回退模式下会自动向上查找并解析各层级 `.gitignore` 规则。
-   - **项目类型识别**：自动识别 application、library、plugin repository、plugin package，并切换更合理的默认扫描目录。
-3. 所有候选必须带"证据"与"风险等级"
-4. **产物存放位置**：所有生成的产物目录（如 `.skill-workspace/`）必须严格生成在**用户当前的终端执行路径 (CWD)** 下，严禁擅自回退到项目的物理根目录。
-5. 输出必须包含回滚建议
-6. **低置信度透明化**：若 `scan-dirs` 未命中、未识别到入口点或依赖图未建立，会在 JSON/Markdown/HTML 中追加 `analysis_warnings`
-7. **插件资产保护**：识别为插件仓库时，默认保护 `.claude-plugin/`、`hooks/`、`examples/`、`evals/`、`scripts/tests/`
+## 核心原则
 
-## 配置驱动
+- **先判断项目形态**：优先识别 `src/page`、`build/utils.js`、`config/index.js`、多页面 HTML 入口等 Vue 2 + Webpack MPA 特征。
+- **先分析，后删除**：未获得用户明确授权前，不执行物理删除。
+- **文件级为主**：默认只把整文件或整 `page group` 作为删除候选。
+- **模糊命中不等于在使用中**：普通名称搜索、stem/tag 命中只能作为人工复核线索，不能直接判定“已使用”。
+- **运行时不确定场景要降级**：只要目标不是静态确定值，就进入 `manual_review`。
 
-所有扫描行为通过配置文件控制。脚本采用**“就近原则”**加载配置（优先级从高到低）：
+## “是否在被使用”判定模型
 
-1. **显式参数**：命令行传入的 `--keep-list` 等参数。
-2. **项目本地配置**：目标项目根目录下的 `.code-cleanup/` 文件夹（推荐用于全局安装场景）。
-3. **Cursor 集成配置**：目标项目根目录下的 `.cursor/skills/code-cleanup-skill/config/`。
-4. **插件内置默认配置**：Skill 文件夹自带的 `config/` 目录。
+必须把对象判到以下四档之一，不要只给一个模糊的“可删/不可删”。
 
-| 配置文件 | 用途 |
-|---------|------|
-| `scan-dirs.txt` | 扫描哪些目录、类别名、关键词策略 |
-| `ext-list.txt` | 哪些扩展名参与扫描 |
-| `keep-list.txt` | 白名单，始终保留的文件 |
+### 1. `used_static`
 
-## 输入约定
+存在静态、可追踪、可还原的确定引用，直接视为“在使用中”。
 
-如用户未给参数，使用默认值：
+常见证据：
 
-```yaml
-target_dirs:
-  - <auto-detect from current workspace>
-mode: patch-candidates
-safety:
-  allow_direct_delete: false
-  require_confirmation: true
-```
+- `import` / `require` / `export ... from`
+- 路由表中的 `component`、明确的动态导入路径
+- `require.context`、`import.meta.glob`
+- `Vue.component(...)` / `app.component(...)` 的明确注册
+- HTML 与同名 JS/CSS 的页面组关系
+- HTML `src/href`、CSS `url()`、模板中的明确资源路径
 
-说明：若不传 `--targets`，脚本会按当前工作空间自动扫描（`--project-root` 对应目录）；当 `scan-dirs` 一个都未命中时，会自动回退到通用代码扫描，并在报告中显式标注 warning。
-## 工作流 (Three-Phase Loop)
+### 2. `used_runtime_literal`
 
-必须遵循以下严格的三阶段闭环，确保清理过程可视化、安全授权、彻底清理且成果可度量。
+不是标准 import 图，但通过静态分析仍能还原出明确字面量目标，也视为“在使用中”。
 
-### Phase 1: 扫描 (Scan)
-1. **执行初始扫描**：调用 `analyze_cleanup_candidates.py` 扫描当前工作空间。
-   - 产出 `before.json`。
-   - Agent 需提取 JSON 中的 `project_stats` 展示项目“健康分”与规模。
-2. **生成可视化报告**：调用 `render_cleanup_report.py` 生成工业风报告。
-   - 产出 `cleanup-report.html`。
-   - **必须**提供报告的本地绝对路径，提示用户：“已生成初始报告，请在浏览器中打开进行可视化评审。”
+常见证据：
 
-### Phase 2: 评审与授权 (Review & Authorize)
-1. **阻塞等待**：Agent **严禁**自主执行删除。必须明确等待用户查看报告后给出指令（如：“清理所有高风险”、“删除特定列表”）。
-2. **确认变更范围**：在执行前，Agent 需向用户二次确认将要删除的文件总数。
+- `window.open('../a/b.html')`
+- `location.href = '../a/b.html?x=1'`
+- 同文件中简单常量传播后仍能还原的页面或资源路径
 
-### Phase 3: 执行、清扫与对比 (Execute, Purge & Diff)
-1. **自动化清理**：根据授权指令，读取 JSON 执行物理删除。
-2. **彻底清扫 (Purge)**：文件删除后，**必须**清理项目中因此产生的空目录。
-   - 执行跨平台 Python 命令：`python3 -c "import pathlib; [p.rmdir() for p in sorted(pathlib.Path('.').rglob('*'), reverse=True) if p.is_dir() and not any(p.iterdir()) and '.git' not in str(p) and 'node_modules' not in str(p)]"`
-3. **二次扫描验证**：删除完成后，**自动**再次运行扫描脚本。
-   - 产出 `after.json`。
-4. **生成战果报告 (Comparison)**：调用渲染脚本，使用 `--previous before.json` 参数。
-   - 生成带 **“🏆 CLEANUP ACHIEVED / 清理战果”** 横幅的最终 HTML 报告。
-5. **成果总结**：向用户汇报健康分提升了多少点，节省了多少空间。
+### 3. `manual_review`
 
-## 执行边界
+看到了运行时行为或弱证据，但目标不是静态确定值。
+这类对象不能直接判为未使用，也不能直接判为可删。
 
-- **授权至上**：严禁在未获得用户明确授权的情况下执行物理删除。
-- **彻底清理**：删除文件后必须顺手清理残留的空目录。
-- **不凭直觉**：Agent 必须严格按照 Phase 1 产出的 JSON 路径执行，禁止猜测路径。
+常见场景：
 
-1. `cleanup-report.html` (核心)
-   - 包含高置信度风险统计卡片。
-   - 低置信度时展示 warning 面板。
-   - 支持按风险等级折叠/展开的交互式表格。
-   - 支持一键复制路径。
-2. `cleanup-report.md`
-   - 供 AI Agent 快速检索和在终端展示的摘要。
-3. `deletion-candidates.json`
-   - 供 AI Agent 执行 Phase 3 时读取的机器可读数据。
-4. `patch-plan.md`
-   - 包含回滚命令、依赖影响分析及手动操作建议。
+- `` `../${name}.html` ``
+- `<component :is="currentComp">`
+- 后端下发页面名、组件名、资源名
+- 运行时注册表、映射表、字符串拼接路径
+- 纯名称命中、tag 命中、stem 命中、模糊字符串片段
 
-## 输出格式规范
+### 4. `unused_candidate`
 
-`deletion-candidates.json` 结构：
+只有在以下条件都满足时，才进入删除候选：
 
-```json
-{
-  "generated_at": "ISO_DATE",
-  "project_root": "ABS_PATH",
-  "project_type": "application | library | plugin_repository | plugin_package | generic",
-  "analysis_warnings": [],
-  "summary": {
-    "high": 0,
-    "medium": 0,
-    "low": 0
-  },
-  "project_stats": {
-    "total_files_scanned": 1500,
-    "total_size_bytes": 1024000,
-    "unused_files_count": 12,
-    "unused_size_bytes": 51200,
-    "health_score": 95
-  },
-  "candidates": [
-    {
-      "path": "src/page/example/example.js",
-      "category": "unused_page",
-      "risk_level": "high",
-      "evidence": [
-        "未在其他源码文件中找到对 `example` 的直接引用"
-      ],
-      "file_size_bytes": 4096,
-      "suggested_action": "delete_after_confirm"
-    }
-  ]
-}
-```
+- 没有 `used_static`
+- 没有 `used_runtime_literal`
+- 没有明确白名单或用户指定保留理由
+- 没有足够强的运行时保活证据
+
+## 推荐分析顺序
+
+1. **确认入口**
+   找出页面 HTML、页面 JS/TS、`new Vue(...)`、`createApp(...)`、多页面配置入口。
+2. **建立页面组**
+   按目录和 basename 合并 co-file，避免把同一页面拆成多个独立判断对象。
+3. **建立依赖与资源关系**
+   分析页面到组件、模块、资源的静态引用。
+4. **逐类分类**
+   先分 `used_static` / `used_runtime_literal` / `manual_review` / `unused_candidate`，再给删除建议。
+5. **输出建议**
+   先给高置信候选，再给人工复核项，最后说明风险来源。
+
+## 页面、模块、资源的具体判定要求
+
+### 页面组
+
+- 先看是否被入口直接命中
+- 再看是否被其他页面通过明确 URL 跳转命中
+- 同组文件互相引用不算“外部使用证据”，不能单独保活某个成员
+- 只要页面组中的入口文件仍在使用，整个页面组默认保留
+
+### 组件与模块
+
+- 静态 import、路由组件、全局注册可以直接保活
+- 仅有“名字像是被用到”不能直接保活
+- “部分导出未使用”只作为优化建议，不作为默认删除项
+
+### 静态资源
+
+- 明确的模板路径、HTML 路径、CSS `url()`、JS import 才能直接保活
+- 资源名被字符串模糊命中时，只能放入 `manual_review`
+- 资源文件删除前必须确认不会被运行时拼接路径访问
+
+## 与用户的沟通方式
+
+默认按以下顺序汇报：
+
+1. **高置信可清理项**
+   明确说明对象类型、证据、为什么可以删。
+2. **需人工复核项**
+   明确说明为什么不能自动下结论。
+3. **风险提示**
+   说明运行时注册、动态路由、字符串拼接、后端下发等误删风险。
+4. **下一步建议**
+   建议先删页面组，再删组件/模块，最后处理静态资源；每次小批量变更后做 smoke test。
 
 ## 执行边界
 
-- 不直接执行删除操作，除非用户明确要求
-- 不对不确定项给出"高风险可删"
-- 遇到动态加载、后端下发路径、插件注册场景要降级为 `medium`
-
-## 推荐实现
-
-优先使用同目录脚本：
-
-- `scripts/analyze_cleanup_candidates.py`
-  - 生成候选 JSON
-  - 支持 `--keep-list` 白名单（默认读取 `config/keep-list.txt`）
-  - 支持 `--ext-list` 扩展名配置（默认读取 `config/ext-list.txt`）
-  - 支持 `--scan-dirs` 目录配置（默认读取 `config/scan-dirs.txt`）
-- `scripts/render_cleanup_report.py`
-  - 生成 `cleanup-report.md` 与 `patch-plan.md`
-
-## 实操命令模板
-
-> ⚠️ **重要提示**：以下模板中的 `$PWD` 必须由 Agent 动态替换为用户当前对话所在的实际终端工作路径。
-
-### A. 作为 Claude 仓库插件使用（推荐发布形态）
-
-```bash
-# 生成扫描 JSON (before.json)
-python3 plugins/code-cleanup/skills/code-cleanup-skill/scripts/analyze_cleanup_candidates.py \
-  --project-root . \
-  --keep-list plugins/code-cleanup/skills/code-cleanup-skill/config/keep-list.txt \
-  --output $PWD/.skill-workspace/code-cleanup/latest/before.json
-
-# 生成可视化报告
-python3 plugins/code-cleanup/skills/code-cleanup-skill/scripts/render_cleanup_report.py \
-  --input $PWD/.skill-workspace/code-cleanup/latest/before.json \
-  --output-dir $PWD/.skill-workspace/code-cleanup/latest
-```
-
-### B. 作为本地 Cursor Skill 使用（兼容模式，可选）
-
-> 说明：此模式仅用于兼容本地 Cursor Skill 工作流，不是 Claude 插件发布必需步骤。
-
-```bash
-python3 .cursor/skills/code-cleanup-skill/scripts/analyze_cleanup_candidates.py \
-  --project-root . \
-  --keep-list .cursor/skills/code-cleanup-skill/config/keep-list.txt \
-  --output $PWD/.cursor/skills/code-cleanup-skill-workspace/latest/before.json
-
-python3 .cursor/skills/code-cleanup-skill/scripts/render_cleanup_report.py \
-  --input $PWD/.cursor/skills/code-cleanup-skill-workspace/latest/before.json \
-  --output-dir $PWD/.cursor/skills/code-cleanup-skill-workspace/latest
-```
-
-## 与用户沟通模板
-
-在给用户反馈时，优先给：
-
-1. 高风险候选（最可能可删）
-2. 误删风险点（动态路由/运行时注册）
-3. 下一步建议（先删小批次、跑回归）
-
-示例：
-
-- "本次识别出 12 个高置信候选、8 个需人工确认候选。建议先处理高置信候选并执行 smoke test，再处理中风险项。"
+- 未获明确授权前，不执行删除。
+- 获得授权后，只删除已确认的对象，不扩张范围。
+- 删除页面时按 `page group` 整组处理，不拆删组内成员。
+- 如果用户只要求分析，就只做分析和建议，不主动修改文件。
+- 本 Skill 不要求固定生成 JSON、HTML 或 Markdown 文件；除非用户明确要求，否则直接在回复中给出结构化结论即可。

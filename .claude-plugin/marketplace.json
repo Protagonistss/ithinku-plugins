@@ -65,22 +65,6 @@
       "source": "./plugins/ui-design",
       "category": "development",
       "homepage": "https://github.com/Protagonistss/claude-plugins/tree/main/plugins/ui-design"
-    },
-    {
-      "name": "code-cleanup",
-      "description": "多语言与跨平台项目代码清理插件，智能识别未引用模块、死代码与历史备份并生成安全候选方案",
-      "source": "./plugins/code-cleanup",
-      "version": "0.0.1",
-      "keywords": [
-        "code-cleanup",
-        "dead-code",
-        "unused-modules",
-        "js", "ts", "python", "go", "java", "php", "ruby", "rust", "cpp",
-        "代码清理",
-        "死代码",
-        "模块分析"
-      ],
-      "category": "development-tools"
     }
   ]
 }
