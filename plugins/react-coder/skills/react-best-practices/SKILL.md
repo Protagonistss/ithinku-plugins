@@ -1,237 +1,78 @@
 ---
 name: react-best-practices
-description: |
-  React 开发最佳实践指南 - 组件设计、Hooks 使用、状态管理及性能优化。
-  当用户说"React组件"、"React Hooks"、"React状态管理"、"useEffect"、"useState"、"useCallback"、"React性能"、"React优化"、"React反模式"、"React重构"时使用此技能。
-  涵盖：组件设计原则（组合优于继承、单一职责）、Hooks 最佳实践（依赖数组、自定义 Hook）、状态管理（服务端状态用 React Query、客户端状态用 Zustand）、性能优化（memo、useMemo、代码分割）。
-  提供 TypeScript 代码示例、反模式警告和最佳实践检查清单。
-disable-model-invocation: false
+description: >-
+  编写或修改 React 组件、Hooks、状态和数据请求时使用。
+  用户提到 React、Hooks、useEffect、useState、组件重构时使用。
+  已有技术栈和组件写法时沿用，不要另起一套。
 ---
 
-# React Best Practices
+# React
 
-## 🌟 技能核心：编写可维护的 React 代码
-本技能旨在指导开发者编写**清晰、高性能、可扩展**的 React 应用。
-**核心原则**：声明式编程、组件化思维、单一职责、不可变性。
+先看 `package.json` 和当前文件。类组件在用户没要求迁移时保持原样，不要改成函数组件。函数组件跟文件已有的写法。
 
-## 📝 代码示例
+依赖里没有的库不要新装。项目用 Redux、SWR、CSS Modules 或 Vite 时，不要改成 Zustand、TanStack Query、Tailwind 或 Next.js。
 
-### 1. 组件设计示例
+## 组件
 
-```tsx
-// ✅ 推荐：小组件、单一职责、组合模式
-interface UserCardProps {
-  user: User;
-  onEdit: (id: string) => void;
-}
+一个组件做一件事。同一段逻辑在两处以上重复，或一个 effect 里做了几件不相干的事时，再抽自定义 Hook。不要因为文件超过某个行数就拆，也不要拆成容器组件和展示组件。
 
-function UserCard({ user, onEdit }: UserCardProps) {
-  return (
-    <article className="user-card">
-      <Avatar src={user.avatarUrl} alt={user.name} />
-      <UserInfo name={user.name} email={user.email} />
-      <UserActions onEdit={() => onEdit(user.id)} />
-    </article>
-  );
-}
+复用用 `children` 组合。props 要穿过很多层时，先把用到数据的组件挪到数据旁边。Context 只放主题、当前用户这类低频数据。会频繁变化的列表或表单状态不要放进 Context，否则子树会跟着重渲染。
 
-// ✅ 使用 children 实现组合
-function Card({ children }: { children: React.ReactNode }) {
-  return <div className="card">{children}</div>;
-}
+## Hooks
 
-function CardHeader({ title }: { title: string }) {
-  return <h2 className="card-header">{title}</h2>;
-}
+只在组件或自定义 Hook 的顶层调用，不放在条件或循环里。
 
-// 使用
-<Card>
-  <CardHeader title="用户信息" />
-  <UserCard user={currentUser} onEdit={handleEdit} />
-</Card>
-```
+`useEffect`、`useMemo`、`useCallback` 的依赖数组按实际读取的值写全。依赖导致循环时，拆开副作用，或不要在渲染期间新建对象和函数。不要为了停掉循环而删掉依赖。
 
-### 2. Hooks 最佳实践示例
+能在渲染时算出来的值，不要放进 effect 再 `setState`。
 
 ```tsx
-// ✅ 自定义 Hook 提取逻辑
-function useWindowSize() {
-  const [size, setSize] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    const handleResize = () => {
-      setSize({ width: window.innerWidth, height: window.innerHeight });
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return size;
-}
-
-// ✅ 正确的依赖数组
-function UserProfile({ userId }: { userId: string }) {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    async function fetchUser() {
-      const data = await getUser(userId);
-      setUser(data);
-    }
-    fetchUser();
-  }, [userId]); // ✅ userId 变化时重新获取
-
-  return user ? <UserCard user={user} /> : <Loading />;
-}
+// 由 props 推导的值在渲染期间计算
+const fullName = `${user.firstName} ${user.lastName}`
 ```
 
-### 3. 状态管理示例
+## 数据请求
+
+跟项目已有的请求方式。已经在用 TanStack Query 或 SWR 时，服务端数据放在那里，不要再复制进 Redux 或 Context。
+
+必须在 effect 里请求时，丢掉过期响应，并在清理函数里中止。
 
 ```tsx
-// ✅ 服务端状态：使用 React Query
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+useEffect(() => {
+  const controller = new AbortController()
+  // userId 变化后，忽略上一次尚未返回的结果
+  let ignore = false
 
-function UserList() {
-  const queryClient = useQueryClient();
+  async function load() {
+    const data = await getUser(userId, { signal: controller.signal })
+    if (!ignore) setUser(data)
+  }
 
-  const { data: users, isLoading } = useQuery({
-    queryKey: ['users'],
-    queryFn: fetchUsers,
-  });
-
-  const mutation = useMutation({
-    mutationFn: updateUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-  });
-
-  if (isLoading) return <Loading />;
-
-  return (
-    <ul>
-      {users?.map((user) => (
-        <li key={user.id}>{user.name}</li>
-      ))}
-    </ul>
-  );
-}
-
-// ✅ 客户端状态：使用 Zustand
-import { create } from 'zustand';
-
-interface AuthState {
-  user: User | null;
-  login: (user: User) => void;
-  logout: () => void;
-}
-
-const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  login: (user) => set({ user }),
-  logout: () => set({ user: null }),
-}));
+  load()
+  return () => {
+    ignore = true
+    controller.abort()
+  }
+}, [userId])
 ```
 
-### 4. 性能优化示例
+读 `window` 的逻辑放在客户端。Next.js 的 Server Component 不能调用 `useState` 和 `useEffect`。不要为了一处交互把整页标成 `"use client"`。
 
-```tsx
-// ✅ 使用 React.memo 避免不必要渲染
-const ExpensiveItem = memo(function ExpensiveItem({
-  item,
-  onSelect,
-}: {
-  item: Item;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <div onClick={() => onSelect(item.id)}>
-      {/* 复杂渲染逻辑 */}
-    </div>
-  );
-});
+## 列表
 
-// ✅ 使用 useMemo 缓存计算
-function FilteredList({ items, filter }: { items: Item[]; filter: string }) {
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => item.name.includes(filter));
-  }, [items, filter]);
+列表项用稳定 id 做 `key`。只有列表静态且不会插入、删除或重排时，才用下标。
 
-  return (
-    <ul>
-      {filteredItems.map((item) => (
-        <li key={item.id}>{item.name}</li>
-      ))}
-    </ul>
-  );
-}
+## 性能
 
-// ✅ 代码分割与懒加载
-const HeavyModal = lazy(() => import('./HeavyModal'));
+先确认是渲染瓶颈，再加 `memo`、`useMemo`、`useCallback`。过滤、拼接这种便宜计算直接写。项目启用了 React Compiler 时，不要再手写这些缓存。
 
-function App() {
-  const [showModal, setShowModal] = useState(false);
+`memo` 包住的组件，不要每次接收新建的对象或回调。回调确实要稳定时，再用 `useCallback`。
 
-  return (
-    <>
-      <button onClick={() => setShowModal(true)}>打开</button>
-      {showModal && (
-        <Suspense fallback={<Loading />}>
-          <HeavyModal onClose={() => setShowModal(false)} />
-        </Suspense>
-      )}
-    </>
-  );
-}
-```
+路由和大块按需出现的界面用 `lazy` 与 `Suspense`。长列表在测量过卡顿之后，再用项目里已有的虚拟列表。
 
-## 🧠 Core Principles (核心原则)
+## 不要做的事
 
-### 1. 组件设计 (Component Design)
-- **Small & Focused**: 每个组件只做一件事。如果组件超过 200 行，考虑拆分。
-- **Composition**: 优先使用组合（Composition）而非继承。使用 `children` prop 或 render props 来复用逻辑。
-- **Presentational vs Container**: 区分展示组件（只负责 UI）和容器组件（负责数据和逻辑），尽管 Hooks 让界限模糊，但分离关注点依然重要。
-
-### 2. Hooks 最佳实践
-- **Rules of Hooks**: 只在顶层调用 Hooks，不要在循环、条件或嵌套函数中调用。
-- **Custom Hooks**: 将复杂的逻辑抽取为自定义 Hook (e.g., `useWindowSize`, `useAuth`)，保持组件整洁。
-- **Dependency Arrays**: 诚实地填写 `useEffect` 和 `useCallback` 的依赖数组。如果依赖项导致无限循环，解决依赖问题而不是撒谎（例如使用 `useRef` 或重构逻辑）。
-
-### 3. 状态管理 (State Management)
-- **Lift State Up**: 将状态提升到最近的共同祖先。
-- **Server State vs Client State**: 使用 React Query (TanStack Query) 或 SWR 管理服务端数据，不要用 Redux/Context 存 API 数据。
-- **Context API**: 仅用于低频更新的全局数据（如主题、用户信息），避免高频更新导致全树重渲染。
-- **Global State**: 对于复杂的客户端状态，推荐使用 Zustand 或 Jotai，比 Redux 更轻量且 boilerplate 更少。
-
-## 🚫 反模式 (Anti-Patterns)
-- ❌ **Prop Drilling**: 层层传递 props 超过 3 层。解决方案：Context 或组合 (Component Composition)。
-- ❌ **Effect for Derived State**: 在 `useEffect` 中根据 props 更新 state。解决方案：直接在渲染期间计算，或使用 `useMemo`。
-- ❌ **Index as Key**: 在列表渲染中使用数组索引作为 `key`（除非列表是静态且不重排的）。
-- ❌ **Huge useEffect**: 一个 `useEffect` 处理多个不相关的逻辑。解决方案：拆分为多个单一职责的 `useEffect`。
-- ❌ **Stale Closures**: 在 `useEffect` 或 `useCallback` 中引用了旧的 state/props，通常是因为依赖数组不完整。
-
-## ⚡ 性能优化 (Performance)
-- **Code Splitting**: 使用 `React.lazy` and `Suspense` 对路由或大型组件进行懒加载。
-- **Memoization**: 使用 `React.memo` 避免不必要的子组件重渲染（仅当 props 引用变化时）。使用 `useMemo` 缓存昂贵的计算。
-- **Virtualization**: 对于长列表，使用 `react-window` 或 `react-virtuoso` 进行虚拟滚动。
-
-## 🛠️ 技术栈与工具推荐
-- **Framework**: Next.js (App Router) 或 Vite.
-- **Styling**: Tailwind CSS (推荐), CSS Modules, 或 Styled Components.
-- **State**: Zustand (Client), React Query (Server).
-- **Form**: React Hook Form + Zod (Validation).
-- **Testing**: Vitest + React Testing Library.
-
-## 🎨 常用指令示例
-```bash
-# 优化组件性能
-/react-coder 优化这个组件的渲染性能，检查是否有不必要的重渲染，并应用 useMemo 或 React.memo。
-
-# 重构为自定义 Hook
-/react-coder 将这个组件中的数据获取和表单逻辑提取为单独的自定义 Hooks。
-
-# 审查代码质量
-/react-coder 检查这段代码是否违反了 React 最佳实践，特别是 useEffect 的依赖和状态管理方面。
-```
+- 用 effect 把 props 同步进 state
+- 一个 effect 里做几件不相干的事
+- 依赖数组故意漏写
+- 给每个函数套 `useCallback`，或给每个展示计算套 `useMemo`

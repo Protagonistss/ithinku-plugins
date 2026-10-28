@@ -13,41 +13,27 @@
 
 ## 🚀 核心特性
 
-- **原子化组件生成**：遵循“单一职责”原则，生成高度解耦、专注且易于测试的功能组件。
-- **Hooks 深度提取**：自动识别组件内的复杂业务逻辑，智能提取为语义化的自定义 Hooks（Custom Hooks）。
-- **性能瓶颈诊断**：精准定位不必要的重渲染，提供 `useMemo`, `useCallback` 及 `React.memo` 的最佳应用时机。
-- **现代生态集成**：深度支持 Next.js (App Router)、Tailwind CSS、Zustand、TanStack Query 及 Shadcn UI 等主流技术栈。
-- **最佳实践审计**：基于 React 官方最新文档与社区共识，自动审查 useEffect 依赖、闭包陷阱等反模式。
+- **沿用现有写法**：类组件和现有状态库、样式方案保持不动。依赖里没有的库不新装。
+- **Hooks**：逻辑重复或 effect 混了多件不相干的事时再抽取。依赖数组按实际读取的值写全。
+- **数据请求**：跟项目已有方式。在 effect 里请求时丢掉过期响应。
+- **性能**：先确认渲染瓶颈，再考虑 `memo`、`useMemo`、`useCallback`。启用 React Compiler 时不手写这些缓存。
 
 ## 🛠️ 核心技能
 
 ### `🎨 React Best Practices`
 本技能是 React Coder 的灵魂，贯穿于每一个代码生成与评审环节。
 
-- **组件设计模式**：组合优于继承（Composition vs Inheritance）、高阶组件拆解。
-- **状态管理策略**：状态提升（Lifting State Up）与 Context API 的合理边界。
-- **逻辑与展示分离**：在 Hooks 模式下完美实践容器/展示模式（Container/Presenter Pattern）。
+- **组件**：用 `children` 组合。不要按行数拆分，也不要拆成容器组件和展示组件。
+- **状态**：Context 只放低频数据。服务端数据留在项目已有的请求库里。
 
 ## 📖 使用场景
 
-### ⚡ 性能优化
-> “优化这个组件的渲染性能，检查是否有不必要的重渲染隐患。”
+### 改现有组件
+> “改一下这个用户资料组件。”技能保持现有的类组件或状态库，只修正 effect 依赖、过期请求和派生状态。
 
-### 🏗️ 架构重构
-> “将这个庞大的 UserProfile 组件拆分成多个子组件，并将数据请求逻辑提取到单独的 Hook 中。”
+### 数据请求
+> “这个详情会在 id 切换后显示上一个人的数据。”技能补上过期响应的丢弃，不为此换一套请求库。
 
-### ✅ 规范审查
-> “检查这段代码是否符合现代 React 开发规范，特别是状态同步和 Effect 处理方面。”
+## 📦 技术栈
 
-### ✨ 组件生成
-> “使用 Tailwind CSS 生成一个响应式的仪表盘侧边栏组件，支持多级折叠和当前状态高亮。”
-
-## 📦 推荐技术栈
-
-| 类别 | 推荐方案 |
-|------|----------|
-| **框架/构建** | Vite / Next.js (App Router) |
-| **状态管理** | Zustand (Client) / TanStack Query (Server) |
-| **样式方案** | Tailwind CSS / Headless UI |
-| **表单校验** | React Hook Form + Zod |
-| **单元测试** | Vitest + React Testing Library |
+框架、状态、样式、表单和测试都跟仓库现有依赖。项目里没有 Zustand、TanStack Query、Tailwind 或 Next.js 时，不要为了这个插件新增它们。
