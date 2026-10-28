@@ -1,154 +1,30 @@
 ---
 name: branch
-description: |
-  智能分支管理技能 - 策略、操作自动化和冲突解决。
-  当用户说"创建分支"、"新建分支"、"合并分支"、"删除分支"、"清理分支"、"检查冲突"、"解决冲突"、"分支管理"时使用此技能。
-  支持多种分支策略(GitFlow/GitHub Flow/Trunk Based)、自动生成分支名、合并分支、预测和解决冲突、分支保护规则检查。
-  重要特性：智能命名遵循规范，自动检测合并冲突风险。
-disable-model-invocation: false
-argument-hint: [create|merge|check-conflicts|cleanup] [args...]
+description: >-
+  用户要求创建、切换、合并或删除分支，或处理合并冲突时使用。
+  先看仓库现有分支名，不要套用 GitFlow 或新建 develop。
 ---
 
-# Skill: Branch
+# Branch
 
-智能分支管理技能 - 策略、操作自动化和冲突解决。
+先看 `git status`、`git branch -vv` 和仓库里实际的主分支。主分支可能是 `main`、`master` 或 `dev`。不要因为常见模板里有 GitFlow 就创建 `develop`，也不要改远程的分支保护规则。
 
-## 核心功能
+## 创建
 
-- 🌳 **分支策略** - 支持 GitFlow、GitHub Flow、Trunk Based Development
-- 📝 **智能命名** - 自动生成规范的分支名
-- 🔄 **操作自动化** - 创建、合并、清理一键完成
-- ⚔️ **冲突解决** - 预测冲突风险，提供解决建议
-- 🛡️ **分支保护** - 规则验证和合规检查
+分支名跟仓库已有的前缀。没有惯例时用 `feature/` 或 `fix/` 加简短英文描述。用户没提供工单号时不要编一个。
 
-## 快速使用
+从用户指定的起点创建。没指定时从当前分支创建，并说明起点。有未提交改动时先告诉用户，不要丢掉这些改动。
 
-```bash
-# 创建功能分支
-/branch create feature PROJ-123 "添加用户认证"
+## 合并
 
-# 合并分支
-/branch merge feature/auth into develop
+用户明确要求合并时再合并。先 `git fetch`，再合并用户指定的分支。
 
-# 检查冲突
-/branch check-conflicts feature/auth develop
+预检冲突用 `git merge-tree`，比较合并基线、当前分支和目标分支。不要用 `git merge --no-commit`，那会让仓库进入合并中。
 
-# 清理分支
-/branch cleanup
-```
+已经处于合并中时，逐段看冲突标记。不要用 `git checkout --ours` 或 `--theirs` 整文件覆盖，除非用户明确说保留哪一边。
 
-## 分支策略
+## 删除
 
-### GitFlow 策略
-```
-main (生产)
-  └── develop (开发)
-        ├── feature/* (功能)
-        ├── release/* (发布)
-        └── hotfix/* (热修)
-```
+只删除用户点名的分支。不删除当前分支、主分支，以及还没合并的分支。不要按「超过 30 天未更新」批量删除本地或远程分支。
 
-**适用场景**：
-- 有明确的发布周期
-- 需要同时维护多个版本
-- 团队规模较大（>10人）
-
-### GitHub Flow 策略
-```
-main (始终可部署)
-  └── feature/* (功能分支，合并后删除)
-```
-
-**适用场景**：
-- 持续部署
-- 单一版本维护
-- 小型团队
-
-### Trunk Based Development
-```
-main (主干)
-  └── short-lived-feature/* (短期分支，<1天)
-```
-
-**适用场景**：
-- 高频发布
-- 成熟团队
-- 完善的 CI/CD
-
-## 分支命名规范
-
-| 类型 | 格式 | 示例 |
-|------|------|------|
-| 功能 | `feature/<ticket>-<desc>` | `feature/PROJ-123-user-auth` |
-| 修复 | `fix/<ticket>-<desc>` | `fix/PROJ-456-login-error` |
-| 热修 | `hotfix/<version>-<desc>` | `hotfix/v1.2.1-security-patch` |
-| 发布 | `release/<version>` | `release/v2.0.0` |
-| 实验 | `experiment/<desc>` | `experiment/new-algorithm` |
-
-## 合并冲突处理
-
-### 冲突检测流程
-1. 使用 `git merge --no-commit --no-ff` 预检
-2. 分析冲突文件和内容
-3. 评估冲突复杂度
-4. 提供解决建议
-
-### 冲突解决策略
-- **优先保留当前分支**：`git checkout --ours <file>`
-- **优先保留合并来源**：`git checkout --theirs <file>`
-- **手动合并**：编辑冲突标记
-- **使用合并工具**：`git mergetool`
-
-## 分支清理
-
-### 清理规则
-- 已合并到主分支的功能分支
-- 超过 30 天未更新的分支
-- 远程已删除的本地追踪分支
-
-### 清理命令
-```bash
-# 清理已合并的本地分支
-git branch --merged main | grep -v "^\*\|main\|develop" | xargs git branch -d
-
-# 清理远程已删除的追踪分支
-git fetch --prune
-
-# 批量清理
-/branch cleanup --merged --stale=30
-```
-
-## 配置
-
-```json
-{
-  "branch": {
-    "strategy": "gitflow",
-    "autoNaming": true,
-    "protection": true,
-    "autoCleanup": true,
-    "mainBranches": ["main", "develop"],
-    "staleDays": 30
-  }
-}
-```
-
-## 最佳实践
-
-### ✅ 推荐做法
-- 保持分支简短（建议 < 3 天完成）
-- 频繁从主分支同步更新
-- 合并前进行代码审查
-- 删除已合并的分支
-
-### ❌ 避免做法
-- 长期存在的功能分支
-- 直接在主分支上开发
-- 跳过代码审查直接合并
-- 不清理过期分支
-
-## 详细信息
-
-- 🔗 [分支策略配置](../../references/config/branch-strategies.md)
-- 🔗 [Git 工具函数](../../references/utils/git-helpers.md)
-- 🔗 [错误处理](../../references/errors/error-types.md)
+删除前用 `git branch -d`。它拒绝时说明还有未合并的提交，等用户明确说可以丢弃再用 `-D`。

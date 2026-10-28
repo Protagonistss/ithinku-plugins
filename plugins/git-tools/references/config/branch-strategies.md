@@ -1,5 +1,7 @@
 # Branch Strategies Configuration
 
+这些是策略模板，不是当前仓库的流程。仓库已经有 `main`、`master` 或 `dev` 时，按现有分支工作，不要照这份模板创建 `develop` 或放开强制推送。
+
 标准分支策略配置模板。
 
 ## GitFlow
