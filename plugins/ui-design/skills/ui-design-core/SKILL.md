@@ -1,214 +1,183 @@
 ---
 name: ui-design-core
-description: |
-  核心设计能力 - 提供配色、布局、组件样式生成及反模式检查。
-  当用户说"设计UI"、"生成样式"、"页面布局"、"CSS样式"、"组件设计"、"配色方案"、"设计系统"、"前端样式"、"响应式设计"、"动画效果"时使用此技能。
-  支持多种设计风格：Neo-Brutalism、Glassmorphism、Editorial、Cyberpunk。
-  提供配色方案、布局生成、组件样式、微交互动效、响应式网格。拒绝"AI廉价感"，追求大胆、独特、细节丰富的设计。
-  重要特性：提供反模式检查，避免泛滥的渐变、无聊的阴影、默认圆角等平庸设计。
-disable-model-invocation: false
+description: >-
+  做页面、改现有界面、布局、交互、配色或动效时使用。
+  用户给出页面或要求做界面时使用，不必等用户指出布局和交互上的问题。
+  无障碍问题用 ui-design-a11y。已有设计系统时沿用它的尺度，不要另起一套皮肤。
 ---
 
-# Core Design Skills
+# UI Design
 
-## 🌟 技能核心：拒绝平庸
-本技能旨在生成**具有独特审美、生产级质量**的前端界面。
-**核心原则**：拒绝千篇一律的 "AI 廉价感" (AI Slop)。我们追求**大胆**、**独特**且**细节丰富**的设计。
+先看仓库里已有的样式、组件库和框架。Vue 项目不要写出 React 组件，也不要引入项目里没有的动效库或图标库。类名落在仓库已有的方案上：Tailwind、CSS Modules、Vue scoped 或普通 CSS。
 
-## 🧠 Design Thinking (设计思维)
-在编写任何代码之前，必须先确立设计方向：
+很多用户说不出哪里别扭，也给不出改法。不要追问风格、布局，或「你更想先改哪一点」，也不要先给几套方案让用户挑。自己看当前页面，缺的尺度、状态、布局和交互直接补上。
 
-### 1. 确立审美基调 (Bold Direction)
-不要做"干净但无聊"的设计。选择一个明确的风格方向：
-- **Brutalism (野兽派)**: 粗边框、高对比度、单色底、巨大字体。
-- **Glassmorphism (玻璃拟态)**: 深度模糊、半透明层、微妙的光影。
-- **Neo-Brutalism**: 鲜艳高饱和色、复古黑边、几何图形。
-- **Editorial (杂志风)**: 精致的衬线体、大留白、不对称布局。
-- **Cyberpunk (赛博朋克)**: 霓虹光晕、深色背景、Glitch 效果。
+对比度、焦点和减弱动效交给 `ui-design-a11y`。成品不能低于 WCAG 2.2 AA。
 
-### 2. 细节至上 (Refined Details)
-- **Typography**: 拒绝 Arial/Roboto。混合搭配 Display 字体（标题）和高可读性 Sans 字体（正文）。
-- **Motion**: 每一个交互都应有物理反馈。使用 `cubic-bezier` 而不是线性的 `ease`。
-- **Depth**: 避免扁平化。使用阴影、纹理、噪点 (Noise) 来增加质感。
+## 默认做成产品界面
 
-## 🚫 反模式 (Anti-Patterns)
-**绝对禁止**以下 "AI 默认审美"：
-- ❌ 泛滥的紫色/蓝色线性渐变背景。
-- ❌ 毫无个性的 `box-shadow: 0 4px 6px rgba(0,0,0,0.1)`。
-- ❌ 默认的圆角 (如 `border-radius: 4px`) —— 要么完全直角，要么夸张的大圆角。
-- ❌ 枯燥的 "Header-Hero-Features" 三段式布局。
+用户没点名某种风格时，做安静、对齐、可完成操作的产品界面。页面松散、主操作不明显、状态缺失时，直接收紧层级、间距、对齐和状态。不要等用户说「太平」「没有产品感」，也不要改成野兽派、玻璃拟态、杂志风、赛博朋克或 bento。
 
-## 📝 代码示例
+用户只给了一个页面、一张截图，或只说「做一下」「优化一下」时，按上面的判断做完这一页。字段、数据和业务步骤保留。
 
-### 1. Neo-Brutalism 风格卡片
+已有设计系统或组件库时，只使用它的颜色、字号、间距和圆角。缺的状态按同一套补上，不要平行再造一套视觉。
 
-```css
-/* 独特的 Neo-Brutalism 风格 */
-.neo-card {
-  background: #fff;
-  border: 4px solid #000;
-  border-radius: 0; /* 直角 */
-  box-shadow: 8px 8px 0 #000; /* 硬阴影 */
-  padding: 2rem;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
+### 尺度
 
-.neo-card:hover {
-  transform: translate(-4px, -4px);
-  box-shadow: 12px 12px 0 #000;
-}
-```
+整页只用一套，不要混用拍脑袋的数值。
 
-```tsx
-// React + Tailwind 实现
-function NeoCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="bg-white border-4 border-black p-8 shadow-[8px_8px_0_#000]
-                    transition-all duration-200 hover:translate-x-[-4px] hover:translate-y-[-4px]
-                    hover:shadow-[12px_12px_0_#000]">
-      {children}
-    </div>
-  );
-}
-```
+| 角色 | 约定 |
+|---|---|
+| 间距 | 以 4px 为基数：4、8、12、16、24、32、48。相关元素靠近，组与组之间加大一档 |
+| 字号 | 产品界面控制在 4 档以内，例如 12、14、16、20。正文 14，标题只比正文大一到两档 |
+| 行高 | 界面文字 1.4 到 1.5，长文 1.6。同一档字号只用一种行高 |
+| 圆角 | 全站一个值。产品界面用 6px 或 8px。胶囊形只给明确的标签或开关 |
+| 颜色 | 背景、表面、边框、正文、次要文字、一个强调色、一个危险色。强调色只用于主操作和当前项 |
+| 字体 | 产品界面只用一种。优先项目已有字体；没有则用系统无衬线字体。不要默认 Inter、Roboto、Arial、Playfair Display |
+| 图标 | 同一套、同一尺寸，通常 16px。不要用 emoji 当图标 |
+| 数字 | 表格和金额用 `tabular-nums`，小数点和右对齐 |
 
-### 2. Glassmorphism 玻璃拟态
+展示页可以加大标题和留白，仍然用这一套基数，只是跳到更大的档，而不是另写一组随意的 `padding: 18px`、`font-size: 15px`。
 
-```css
-/* 玻璃效果 */
-.glass-card {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-```
+### 完成度
 
-```tsx
-// Tailwind CSS 实现
-function GlassCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="bg-white/10 backdrop-blur-xl border border-white/20
-                    rounded-3xl shadow-lg p-6">
-      {children}
-    </div>
-  );
-}
-```
+表面上的区分靠背景色和 1px 边框。阴影只留给浮层：下拉、弹层、抽屉。不要给每张卡片加阴影，也不要在悬停时把卡片抬起来。
 
-### 3. Editorial 杂志风格排版
+可点击的控件都要有默认、悬停、键盘焦点、禁用。输入框还要有错误态。列表和表格要有空状态：一句说明加一个主动作，不要放装饰插画。
 
-```css
-/* 杂志风格排版 */
-.editorial-header {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(3rem, 8vw, 8rem);
-  font-weight: 700;
-  line-height: 0.9;
-  letter-spacing: -0.03em;
-  color: #1a1a1a;
-}
+同一页面上，按钮高度、输入框高度、图标尺寸和图标与文字的间距各自只有一种。内容边线对齐到同一列，不要靠视觉大概对齐。
 
-.editorial-body {
-  font-family: 'Inter', sans-serif;
-  font-size: 1.125rem;
-  line-height: 1.8;
-  color: #444;
-  max-width: 65ch; /* 最佳阅读宽度 */
-}
-```
+产品页保持可扫描的密度。应用里的页头不要做成落地页主视觉，表格和表单不要被大段空白或巨号标题撑开。
 
-### 4. 微交互动效
+动效只表示状态变化，例如菜单展开、按下反馈。时长 120ms 到 200ms。表单、表格和列表不要给每一行加动画，并尊重 `prefers-reduced-motion`。
+
+## 布局和交互
+
+改现有页面，或用户只给了页面、没说出问题时，自己对照下面的规则看，然后直接改。不要等用户描述问题，也不要先列建议再问做不做。
+
+只改当前这个视图里让主任务变慢的布局和交互。字段、数据和业务步骤保留。视觉仍用上面的尺度，不靠换皮肤。不扩到用户没打开的其他页面。
+
+### 布局
+
+- 一页一件主任务。主按钮全页只有一个，放在标题行右侧；表单则放在字段组末尾
+- 搜索和筛选紧挨着它们作用的列表。已选条件可见，并且能单独清除
+- 表单单列，标签在输入框上方。相关字段分成组，组标题用次要文字
+- 表格把用来识别的列放左边，行内主操作放右边，不要等悬停才出现
+- 长页面的主操作在首屏可见。超过一屏的表单可以把操作条固定在底部
+- 窄屏改成上下排列。正文不要小于 14px
+
+### 交互
+
+- 按钮分主操作、次操作、危险操作。确认框里的按钮写动作本身，例如「删除」，不要写「确定」
+- 可以撤销的操作提供撤销。不能撤销的才弹出确认
+- 提交后按钮进入进行中。失败原因回到刚才的字段；成功后留在用户还要继续处理的列表或详情，不要跳到一张空白完成页
+- 会请求数据的区域分别给出加载、空和失败。失败提供重试
+- 控件被禁用时，原因写在它旁边
+- 字段在失焦时校验，错误贴着该字段
+- 悬停不能是发现某个操作的唯一方式
+
+不为了这些规则加操作引导、多步向导或额外页面。任务本身就很长时，才把一步拆开。
+
+### 不要做成这样
+
+这些是默认要避开的外观。用户没点名时，一个都不要用：
+
+- 整页紫、蓝或粉的线性渐变，以及渐变字
+- 黑粗边、实色硬阴影、高饱和色块
+- 毛玻璃卡片、光斑、噪点底纹
+- 霓虹、故障风、发光描边
+- 用 bento 拼成的首页，或页头加主视觉加三列特性作为整个产品
+- 每张卡片白底、软阴影、悬停上浮
+- 多种圆角、多种阴影、多种强调色出现在同一页
+- 为了「有设计感」把数据后台做成展示页
+
+## 用户点名一种风格时
+
+只有用户明确说出风格名字时才使用对应外观，并且只用一种。间距、字号、状态和对比度仍按上面的尺度做完。不要把硬阴影、毛玻璃和渐变字叠在一起。
+
+点名之后仍然补齐悬停、焦点、禁用、错误和空状态。风格不是只做一张好看的卡片。
+
+## 示例
+
+下面是没有设计系统时的产品界面起点。仓库里已有 token 时，用仓库的值替换这些变量，不要两套并存。
 
 ```css
-/* 精心设计的按钮动效 */
-.btn-premium {
-  position: relative;
-  overflow: hidden;
-  background: #000;
+:root {
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 20px;
+  --radius: 8px;
+  --color-bg: #f5f6f8;
+  --color-surface: #fff;
+  --color-border: #e4e7ec;
+  --color-text: #172033;
+  --color-muted: #4a5568;
+  --color-accent: #1d4ed8;
+  --color-danger: #b42318;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+.btn {
+  height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--color-accent);
   color: #fff;
-  padding: 1rem 2rem;
-  border-radius: 0;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  font-size: var(--font-size-md);
+  transition: background-color 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-.btn-premium::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
-  transform: translateX(-100%);
-  transition: transform 0.6s;
+.btn:hover {
+  background: #1e40af;
 }
 
-.btn-premium:hover::before {
-  transform: translateX(100%);
+.btn:focus-visible {
+  outline: 3px solid #005fcc;
+  outline-offset: 2px;
 }
 
-.btn-premium:active {
-  transform: scale(0.98);
-}
-```
-
-### 5. 响应式网格布局
-
-```css
-/* 现代 CSS Grid 布局 */
-.bento-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: minmax(200px, auto);
-  gap: 1.5rem;
+.btn:disabled {
+  background: #d0d5dd;
+  color: #667085;
 }
 
-.bento-item--large {
-  grid-column: span 2;
-  grid-row: span 2;
+.field {
+  height: 36px;
+  width: 100%;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-size: var(--font-size-md);
 }
 
-.bento-item--wide {
-  grid-column: span 3;
+.field[aria-invalid="true"] {
+  border-color: var(--color-danger);
 }
 
-@media (max-width: 768px) {
-  .bento-grid {
-    grid-template-columns: 1fr;
-  }
-  .bento-item--large,
-  .bento-item--wide {
-    grid-column: span 1;
-    grid-row: span 1;
+.field-error {
+  margin-top: var(--space-2);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
   }
 }
 ```
-
-## 🎨 常用指令与 Prompt 策略
-
-### 1. 布局生成 (Layout)
-不要只说 "生成一个着陆页"，尝试更具体的风格描述：
-```bash
-# ❌ 错误示范
-/ui-design 生成一个科技感着陆页
-
-# ✅ 正确示范
-/ui-design 生成一个 Neo-Brutalism 风格的着陆页。使用高饱和度的橙色和黑色，厚重的边框，巨大的无衬线标题，并且布局要打破常规网格。
-```
-
-### 2. 组件样式 (Component)
-```bash
-# 生成具有杂志质感的卡片
-/ui-design 设计一个 Article Card。使用衬线字体 (Playfair Display)，大留白，图片带有视差滚动效果，鼠标悬停时卡片轻微上浮并投射长阴影。
-```
-
-### 3. 即时重构 (Refactor)
-```bash
-# 拯救平庸设计
-/ui-design 重新设计这个 Hero Section。现在的太普通了。把它改成极简主义风格，使用巨大的文字排版作为主视觉，去掉所有多余的装饰，只保留黑白两色和极细的分割线。
-```
-
-## �️ 技术栈推荐
-- **CSS Framework**: Tailwind CSS (推荐), CSS Modules.
-- **Animation**: Framer Motion (React), GSAP, 或原生 CSS Transitions.
-- **Icons**: Lucide React, Remix Icon (避免 FontAwesome).

@@ -1,205 +1,76 @@
 ---
 name: vue3-best-practices
-description: |
-  Vue 3 开发最佳实践指南 - Composition API、Script Setup、Pinia、TypeScript 集成及性能优化。
-  当用户说"Vue 3组件"、"Composition API"、"script setup"、"Pinia"、"Vue 3项目"、"ref reactive"、"defineProps defineEmits"、"Composable"、"Vue 3优化"时使用此技能。
-  涵盖：Script Setup 与 Composition API、响应式数据选择（ref vs reactive）、组件通信（Props/Emits/v-model/Slots）、Composables 设计模式、Pinia Setup Store、性能优化（v-memo、shallowRef、KeepAlive）。
-  提供 TypeScript 代码示例、反模式对照表、迁移指南和示例文件引用。
-disable-model-invocation: false
+description: >-
+  使用 Vue 3 编写或修改组件、Composable、Pinia store 时使用。
+  用户提到 Vue 3、Composition API、script setup、Pinia、defineProps、defineEmits、defineModel、Composable 时使用。
+  Vue 2 项目用 vue2-best-practices。
 ---
 
-# Vue 3 Best Practices
+# Vue 3
 
-## 🌟 技能核心
+Vue 3 项目。Vue 2 用 `vue2-best-practices`。`defineModel`、`defineOptions`、`defineSlots` 不要写进 Vue 2.6，也不要写进 Vue 2.7。
 
-本技能指导开发者编写 **模块化、类型安全、高性能** 的 Vue 3 应用。
+## 目录
 
-**核心原则**：
-- Composition API First
-- 逻辑复用 (Composables)
-- 类型推导优先
-- 单一数据流
+先沿用仓库里已有的目录。没有约定时，按项目类型选一种，不要套用唯一模板。
 
----
+| 项目类型 | 默认倾向 |
+|---|---|
+| 多特性中后台 | `features/<能力>/` 收拢该能力的接口、状态、页面和类型。路由、布局、文案、应用级状态留在壳层 |
+| 组件库、设计系统 | 按组件分目录，另配示例。不设业务路由，也不设 `features/` |
+| 内容站、营销页 | 少量页面。Nuxt 项目跟 `pages/`、`server/` |
+| 小型单页 | `App.vue` 和少量组件，不再加一层特性目录 |
+| 已有工程 | 保持现有目录，包括 Vue 2 的 `views/` 与 Vuex 模块 |
 
-## 📁 推荐项目结构
+下文示例里的导入路径只说明写法。落文件时按上表和仓库现状决定，不要照搬示例路径。
 
-```
-src/
-├── assets/              # 静态资源
-├── components/          # 通用组件
-│   ├── ui/              # 基础 UI 组件
-│   └── business/        # 业务组件
-├── composables/         # 组合式函数 (use*.ts)
-├── stores/              # Pinia stores
-├── views/               # 页面组件
-├── router/              # 路由配置
-├── types/               # TypeScript 类型定义
-├── utils/               # 工具函数
-├── api/                 # API 请求封装
-└── App.vue
-```
+命名跟仓库现有风格。没有约定时：组件 PascalCase，Composable 用 `use` 前缀，store 用 `useXxxStore`。
 
-**命名规范**：
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| 组件 | PascalCase | `UserProfile.vue` |
-| Composables | camelCase + use 前缀 | `useAuth.ts` |
-| Stores | camelCase + Store 后缀 | `userStore.ts` |
-| 工具函数 | camelCase | `formatDate.ts` |
+## 组件
 
----
+默认 `<script setup lang="ts">`。导入方式跟仓库现有代码：已有自动导入就不要再手写一遍 `import { ref } from 'vue'`。
 
-## 🧠 核心原则
+顶层 `await` 会使组件变成异步组件，父级需要 `Suspense`。
 
-### 1. Script Setup 与 Composition API
+### Props
 
-```vue
-<script setup lang="ts">
-// ✅ 推荐：显式导入，利于代码阅读和依赖追踪
-import { ref, computed, watch, onMounted } from 'vue'
-import { useUserStore } from '@/stores/userStore'
-
-// 顶层 await 支持
-const data = await fetchInitialData()
-
-// 响应式状态
-const count = ref(0)
-const doubled = computed(() => count.value * 2)
-
-// Store 使用
-const userStore = useUserStore()
-</script>
-```
-
-**要点**：
-- 默认使用 `<script setup lang="ts">`，更简洁，运行时性能更好
-- 支持顶层 `await`
-- 显式导入 `ref`, `computed`, `watch` 等（而非依赖自动导入）
-
-### 2. 响应式数据 (Reactivity)
-
-| 场景 | 推荐 | 原因 |
-|------|------|------|
-| 基本类型 | `ref` | 清晰的 `.value` 访问 |
-| 对象/数组（默认） | `reactive` | 更直观；解构需 `toRefs` |
-| 需要整体替换/可空对象 | `ref` | 便于赋新对象与类型约束 |
-| 深层嵌套大对象 | `reactive` | 仅当不解构时使用 |
-| 大型外部实例 | `shallowRef` | 避免不必要的深度响应 |
+Vue 3.5+ 可以解构 props，默认值写在解构上：
 
 ```typescript
-// ✅ 推荐
-const user = ref<User | null>(null)
-user.value = { name: 'John' }
-
-// ⚠️ 谨慎使用 reactive
-const state = reactive({ items: [] })
-// 解构会丢失响应性！
-const { items } = state // ❌ items 不再是响应式
-
-// ✅ 使用 toRefs 解构
-const { items } = toRefs(state)
-```
-
-### 3. 组件通信
-
-#### Props 定义（带默认值）
-
-```typescript
-// Vue 3.5+ 推荐写法
 const { title, count = 0 } = defineProps<{
   title: string
   count?: number
 }>()
-
-// Vue 3.4 及以下
-const props = withDefaults(defineProps<{
-  title: string
-  count?: number
-}>(), {
-  count: 0
-})
 ```
 
-**注意**：解构式 props 需要 Vue 3.5+（或编译选项 `propsDestructure: true`）。否则解构结果非响应式，建议使用 `withDefaults` 或保留 `props.xxx` 访问。
+3.4 及以下用 `withDefaults`，或一直通过 `props.xxx` 访问。更早版本里解构 props 会失去响应性。响应式解构也可以用编译选项 `propsDestructure: true` 打开。
 
-#### Emits 定义
+不要直接修改 prop。
+
+### Emits、v-model、插槽与暴露
 
 ```typescript
 const emit = defineEmits<{
   change: [id: number]
-  update: [value: string]
 }>()
 
-// 使用
-emit('change', 123)
-```
-
-#### v-model（Vue 3.4+）
-
-```typescript
-// 简化双向绑定
+// Vue 3.4+。带名字的 v-model 用第一个参数区分
 const modelValue = defineModel<string>()
 const count = defineModel<number>('count', { default: 0 })
-```
 
-#### Slots 类型化
-
-```typescript
 defineSlots<{
-  default: (props: { item: Item }) => any
-  header: () => any
+  default: (props: { item: Item }) => unknown
 }>()
-```
 
-#### Expose
-
-```typescript
-// 暴露给父组件的方法/属性
+// 只暴露父组件需要调用的方法
 defineExpose({
-  focus: () => inputRef.value?.focus(),
-  reset
+  focus: () => inputRef.value?.focus()
 })
 ```
 
-### 4. 组件命名 (defineOptions)
+### 泛型组件
 
-递归组件、调试、DevTools 中必须显式命名：
-
-```typescript
-defineOptions({
-  name: 'TreeNode',      // 递归组件必须
-  inheritAttrs: false    // 禁用属性自动透传
-})
-```
-
-**何时需要命名**：
-| 场景 | 必要性 |
-|------|--------|
-| 递归组件 | ⭐ 必须 |
-| DevTools 调试 | 推荐 |
-| KeepAlive include/exclude | 必须 |
-| Transition 组件 | 推荐 |
-
-### 5. 属性透传 (inheritAttrs)
-
-```vue
-<script setup lang="ts">
-defineOptions({ inheritAttrs: false })
-
-// 获取透传的属性
-const attrs = useAttrs()
-</script>
-
-<template>
-  <!-- 手动绑定到内部元素 -->
-  <div class="wrapper">
-    <input v-bind="attrs" />
-  </div>
-</template>
-```
-
-### 6. 泛型组件（Vue 3.3+）
+`generic` 需要 Vue 3.3+。
 
 ```vue
 <script setup lang="ts" generic="T extends { id: number }">
@@ -207,242 +78,92 @@ defineProps<{
   items: T[]
   selected?: T
 }>()
-
-const emit = defineEmits<{
-  select: [item: T]
-}>()
 </script>
 ```
 
----
+### 组件名与属性透传
 
-## 🧩 逻辑复用 (Composables)
+`script setup` 默认用文件名作为组件名。下面两种情况再写 `defineOptions({ name })`（Vue 3.3+）：
 
-### 基本模式
+- `KeepAlive` 的 `include` / `exclude` 要对上这个名字
+- 模板里用的标签名和文件名不一致，包括递归引用
 
-```typescript
-// composables/useCounter.ts
-import { ref, computed } from 'vue'
+属性要落到内部某个节点、而不是组件根上时：
 
-export function useCounter(initial = 0) {
-  const count = ref(initial)
-  const doubled = computed(() => count.value * 2)
+```vue
+<script setup lang="ts">
+// 仓库没有自动导入时才写这行
+import { useAttrs } from 'vue'
 
-  function increment() {
-    count.value++
-  }
+defineOptions({ inheritAttrs: false })
+const attrs = useAttrs()
+</script>
 
-  function reset() {
-    count.value = initial
-  }
-
-  return {
-    count,
-    doubled,
-    increment,
-    reset
-  }
-}
+<template>
+  <input v-bind="attrs" />
+</template>
 ```
 
-### 带异步请求的 Composable
+`examples/component-example.vue` 的文件名不是 `TreeNode.vue`，模板里的递归标签才需要 `defineOptions({ name: 'TreeNode' })`。文件名已经对上时不要再写一遍。
+
+## 响应式
+
+| 场景 | 用 |
+|---|---|
+| 基本类型、可空值、需要整个替换的对象 | `ref` |
+| 一组不会整个替换、也不会被解构的字段 | `reactive` |
+| 图表、地图这类大型外部实例 | `shallowRef` |
+
+`reactive` 对象解构后不再是响应式，要用 `toRefs`。这和 Vue 3.5 的 props 解构不是同一件事。
+
+模板里 ref 会自动解包，`<script>` 里要写 `.value`。
+
+## Composable
+
+以 `use` 开头，返回 ref 和函数，里面不要用 `this`。已有 VueUse 能完成的不要再手写一份。
+
+参数可能是值、ref 或 getter 时，用 `toValue`（Vue 3.3+）。更早版本用 `unref`，或只接收 `Ref`。
+
+分页示例见 `examples/composable-example.ts`。
+
+## Pinia
+
+优先 Setup Store，和组件一样用 `ref` / `computed` / 函数。状态保持扁平，getter 用 `computed`，异步放在函数里。
 
 ```typescript
-// composables/useFetch.ts
-import { ref, shallowRef, watchEffect, toValue, type MaybeRefOrGetter } from 'vue'
-
-export function useFetch<T>(url: MaybeRefOrGetter<string>) {
-  const data = shallowRef<T | null>(null)
-  const error = shallowRef<Error | null>(null)
-  const loading = ref(false)
-
-  async function execute() {
-    loading.value = true
-    error.value = null
-    try {
-      const res = await fetch(toValue(url))
-      data.value = await res.json()
-    } catch (e) {
-      error.value = e as Error
-    } finally {
-      loading.value = false
-    }
-  }
-
-  watchEffect(() => {
-    execute()
-  })
-
-  return { data, error, loading, refresh: execute }
-}
-```
-
-**注意**：`MaybeRefOrGetter`/`toValue` 需要 Vue 3.3+。低版本可用 `unref` 或改为仅接收 `Ref`。
-
-**最佳实践**：
-- ✅ 以 `use` 开头命名
-- ✅ 返回对象包含响应式状态和方法
-- ✅ 优先使用 [VueUse](https://vueuse.org/) 已有工具
-- ❌ 不要在 Composable 中使用 `this`
-
----
-
-## 📦 状态管理 (Pinia)
-
-### Setup Store（推荐）
-
-```typescript
-// stores/userStore.ts
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-
 export const useUserStore = defineStore('user', () => {
-  // State
   const user = ref<User | null>(null)
-  const token = ref('')
+  const isLoggedIn = computed(() => user.value !== null)
 
-  // Getters
-  const isLoggedIn = computed(() => !!token.value)
-  const displayName = computed(() => user.value?.name ?? 'Guest')
-
-  // Actions
   async function login(credentials: LoginDTO) {
-    const res = await api.login(credentials)
-    user.value = res.user
-    token.value = res.token
+    user.value = await api.login(credentials)
   }
 
-  function logout() {
-    user.value = null
-    token.value = ''
-  }
-
-  return {
-    user,
-    token,
-    isLoggedIn,
-    displayName,
-    login,
-    logout
-  }
+  return { user, isLoggedIn, login }
 })
 ```
 
-**要点**：
-- 优先使用 Setup Store，与组件写法一致
-- State 保持扁平化
-- Getters = computed
-- Actions 处理同步/异步逻辑
+更完整的示例见 `examples/store-example.ts`。落文件时跟仓库已有的 store 目录，不要照搬示例文件名。
 
----
+## 从 Options API 迁移
 
-## 🚫 反模式对照表
-
-| ❌ 错误做法 | ✅ 正确做法 |
-|-------------|-------------|
-| 使用 Mixins | 使用 Composables |
-| `const { prop } = props` 解构 | `props.prop` 或 `toRefs(props)` |
-| 在 setup 中写 `created` 逻辑 | 直接写在 setup 顶层 |
-| 忘记 `.value` | 始终在 script 中使用 `.value` |
-| `reactive` 后解构 | 使用 `ref` 或 `toRefs` |
-| Options API 混用 | 统一使用 Composition API |
-
----
-
-## ⚡ 性能优化
-
-| 技术 | 场景 | 示例 |
-|------|------|------|
-| `v-memo` | 大型列表/表格 | `v-memo="[item.id, item.selected]"` |
-| `shallowRef` | 大型外部实例 | 地图、图表实例 |
-| `KeepAlive` | 缓存组件 | 标签页切换 |
-| 路由懒加载 | 所有路由 | `() => import('./Page.vue')` |
-| `defineAsyncComponent` | 条件渲染组件 | 模态框、抽屉 |
-
-```typescript
-// 路由懒加载
-const routes = [
-  {
-    path: '/dashboard',
-    component: () => import('@/views/Dashboard.vue')
-  }
-]
-
-// 异步组件
-const HeavyModal = defineAsyncComponent(() => 
-  import('./HeavyModal.vue')
-)
-```
-
----
-
-## 🛠️ 技术栈推荐
-
-| 分类 | 推荐 |
-|------|------|
-| 构建工具 | Vite |
-| 路由 | Vue Router 4 |
-| 状态管理 | Pinia |
-| UI 组件库 | Element Plus / Naive UI / Ant Design Vue |
-| 样式方案 | UnoCSS / Tailwind CSS |
-| 测试 | Vitest + Vue Test Utils |
-| 工具库 | VueUse |
-
----
-
-## 🔄 迁移指南：Options → Composition
+新组件不要再写 Options API。改旧组件时整份换掉，不要在同一个组件里两套状态各写一半。用户没有要求迁移时，不要改 Vue 2 文件。
 
 | Options API | Composition API |
-|-------------|-----------------|
+|---|---|
 | `data()` | `ref()` / `reactive()` |
-| `computed: {}` | `computed()` |
-| `methods: {}` | 普通函数 |
-| `watch: {}` | `watch()` / `watchEffect()` |
-| `created` | `<script setup>` 顶层代码 |
+| `computed` | `computed()` |
+| `methods` | 普通函数 |
+| `watch` | `watch()` / `watchEffect()` |
+| `created` | `<script setup>` 顶层 |
 | `mounted` | `onMounted()` |
 | `this.xxx` | 直接访问变量 |
+| mixin | composable |
 
----
+## 性能
 
-## 🐛 常见错误排查
+先确认是渲染瓶颈，再加优化。
 
-| 问题 | 原因 | 解决 |
-|------|------|------|
-| 数据不更新 | 忘记 `.value` | 检查 ref 访问 |
-| 解构后不响应 | reactive 解构 | 使用 `toRefs()` |
-| computed 不执行 | 未访问 `.value` | 确保访问响应式依赖 |
-| watch 不触发 | 监听了原始值 | 使用 getter 函数 |
-| Props 类型错误 | 缺少类型定义 | 添加泛型类型 |
-
----
-
-## 📂 示例文件
-
-本技能包含以下完整示例，位于 `examples/` 目录：
-
-| 文件 | 说明 |
-|------|------|
-| [component-example.vue](./examples/component-example.vue) | 递归树形组件，展示 defineOptions 命名、插槽透传 |
-| [composable-example.ts](./examples/composable-example.ts) | usePagination 分页逻辑封装 |
-| [store-example.ts](./examples/store-example.ts) | Pinia Setup Store 完整示例 |
-
----
-
-## 🎨 常用指令示例
-
-```bash
-# 生成 Composable
-/vue-coder 提取这段逻辑为一个名为 usePagination 的 Composable 函数。
-
-# 转换 Options API
-/vue-coder 将这个 Options API 组件重构为 <script setup lang="ts"> 写法。
-
-# 优化响应式
-/vue-coder 检查这段代码中 reactive 的使用是否合理，建议改为 ref。
-
-# 添加类型
-/vue-coder 为这个组件的 props 和 emits 添加完整的 TypeScript 类型。
-
-# 性能优化
-/vue-coder 分析这个列表组件的性能问题，建议优化方案。
-```
+- 大列表用 `v-memo`，依赖项只放真正影响这行输出的值
+- 重组件用路由懒加载或 `defineAsyncComponent`
+- `KeepAlive` 只包需要保留状态的页面，`include` 依赖组件名

@@ -1,7 +1,7 @@
 <h1 align="center">✨ UI Design Plugin</h1>
 
 <p align="center">
-  <strong>拒绝平庸审美，专注于生成具有独特个性、大胆视觉与生产级质量的前端界面</strong>
+  <strong>做出对齐、克制、状态完整的产品界面。用户点名风格时才换皮肤</strong>
 </p>
 
 <p align="center">
@@ -11,43 +11,27 @@
 
 ---
 
-**“拒绝 AI Default Slop。”**
-本插件致力于帮助开发者突破平庸的“AI 默认审美”，创造出令人印象深刻、细节丰富且具有独特灵魂的用户界面。
+默认做产品界面：一套间距、一套字号、一种圆角、一个强调色，并补齐悬停、焦点、禁用、错误和空状态。
 
 ## 🎯 设计理念 (Philosophy)
 
-- **大胆美学 (Bold Aesthetics)**：每一个设计都应有明确且鲜明的风格导向（如 Brutalism, Editorial, Glassmorphism），拒绝“干净但无聊”。
-- **反模式审查 (Anti-Patterns)**：严禁使用泛滥的紫色渐变、平庸的默认圆角（4px）和毫无个性的“Header-Hero”三段式布局。
-- **极致细节 (Refined Details)**：在排版 (Typography)、物理动效 (Motion) 和感知深度 (Depth) 上进行像素级打磨。
+- **产品完成度**：表面靠边框和背景色分开，阴影只留给浮层。控件高度、图标尺寸和数字对齐保持一致。
+- **不套流行皮肤**：用户没点名时，不用渐变底、硬阴影、毛玻璃、霓虹、bento 和展示页式主视觉。
+- **沿用现有系统**：仓库已有颜色、字号和组件时只扩展状态，不平行再造一套视觉。
 
 ## 🚀 核心能力
 
-- **[Core Design](./skills/ui-design-core/SKILL.md)**：生成具有高度“设计感”的代码。深度支持 Tailwind CSS、CSS Modules 及现代动画库。
-- **[A11y Check](./skills/ui-design-a11y/SKILL.md)**：在追求极致视觉的同时，确保符合 WCAG 标准的无障碍访问性。
+- **[Core Design](./skills/ui-design-core/SKILL.md)**：用户说不清问题时，自己看当前页面的尺度、状态、布局和交互，并直接改。已有设计系统沿用，用户没点名风格时不换皮肤。
+- **[A11y Check](./skills/ui-design-a11y/SKILL.md)**：按 WCAG 2.2 AA 检查语义、键盘、焦点、对比度和减弱动效。
 
 ## 🎨 场景示例
 
-### 🏗️ 风格化重构
-> “将这个平庸的登录页重构为 **Cyberpunk** 风格，添加霓虹光晕效果和微妙的 Glitch 故障动效。”
+### 改现有页面
+> “改一下这个列表页。”或只丢出页面、说不出具体问题。技能自己看主任务、筛选位置、空状态和按钮层级，然后直接改。不要追问想改哪一点，也不要给几套方案让用户选。
 
-### 📰 杂志化排版
-> “生成一个 **Editorial** 风格的博客详情页，使用巨大的 Playfair Display 标题、非对称网格布局和大量的留白。”
-
-### 🧊 现代拟态
-> “为一个金融看板设计 **Glassmorphism** 风格的卡片，背景需要深度高斯模糊，并带有微妙的边缘光影。”
-
-## 📖 快速指令
-
-在对话中直接描述你的视觉目标，或者使用以下风格关键词：
-
-```bash
-# 示例：
-/ui-design 生成一个 Neo-Brutalism 风格的项目列表，使用高饱和度的橙色、厚重的黑边和硬阴影。
-```
+### 点名风格
+> “登录页改成 Neo-Brutalism：高饱和橙色、厚黑边和硬阴影。间距和表单状态仍然做完整。”
 
 ## ⚙️ 技术预设
 
-本插件默认倾向于以下技术栈以实现最佳视觉效果：
-- **CSS 框架**：Tailwind CSS (JIT Mode)
-- **动效引擎**：Framer Motion / 原生 CSS Bezier
-- **图标体系**：Remix Icon / Lucide (拒绝通用的 FontAwesome)
+样式、动效和图标跟仓库现有方案。项目里没有 Framer Motion、Lucide 或 Tailwind 时，不要为了这个插件新增它们。动效优先用 CSS，并尊重减弱动效设置。

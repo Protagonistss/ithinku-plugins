@@ -6,7 +6,7 @@
 import { computed } from 'vue'
 
 // ========== 组件命名 ==========
-// 递归组件必须显式命名，否则无法在模板中引用自身
+// 本文件名不是 TreeNode.vue，模板里的递归标签才需要显式命名
 defineOptions({
   name: 'TreeNode'
 })
@@ -114,11 +114,10 @@ function handleChildToggle(nodeId: string | number, expanded: boolean) {
 
     <!-- 递归渲染子节点 -->
     <template v-if="hasChildren && isExpanded">
-      <!-- 
-        ⭐ 递归组件关键点：
-        1. 使用 defineOptions({ name: 'TreeNode' }) 命名
-        2. 在模板中用 <TreeNode> 引用自身
-        3. 传递 depth + 1 控制缩进层级
+      <!--
+        文件名和递归标签不一致时，用 defineOptions({ name }) 对齐标签名。
+        文件名本身是 TreeNode.vue 时不必再写 name。
+        depth + 1 用来控制缩进层级。
       -->
       <TreeNode
         v-for="child in node.children"
